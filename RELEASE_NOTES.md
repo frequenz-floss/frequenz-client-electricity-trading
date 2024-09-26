@@ -17,6 +17,8 @@
 * Remove dependency to `googleapis-common-protos`
 * Replace `Energy` with `Power` for the `quantity` representation
 * Add str function for `DeliveryPeriod` object
+* Add integration tests for the API
+* Add an equality function to the Order type
 
 ## Bug Fixes
 
