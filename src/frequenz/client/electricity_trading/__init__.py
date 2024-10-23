@@ -36,16 +36,21 @@ First, initialize the client with the appropriate server URL and API key.
 ???+ example "Initialize the client"
 
     ```python
+    import asyncio
     from frequenz.client.electricity_trading import Client
 
     # Change server address if needed
     SERVICE_URL = "grpc://electricity-trading.api.frequenz.com:443?ssl=true"
     with open('/path/to/api_key.txt', 'r', encoding='utf-8') as f:
         API_KEY = f.read().strip()
-    client = Client(
-        server_url=SERVICE_URL,
-        auth_key=API_KEY
-    )
+
+    async def initialize():
+        client = Client(
+            server_url=SERVICE_URL,
+            auth_key=API_KEY
+        )
+
+    asyncio.run(initialize())
     ```
 
 ### Example Usage
@@ -58,6 +63,7 @@ Here's an example of how to create a limit order to buy energy.
 ???+ example "Create a limit order"
 
     ```python
+    import asyncio
     from frequenz.client.electricity_trading import (
         Client,
         Currency,
@@ -76,32 +82,36 @@ Here's an example of how to create a limit order to buy energy.
     SERVICE_URL = "grpc://electricity-trading.api.frequenz.com:443?ssl=true"
     with open('/path/to/api_key.txt', 'r', encoding='utf-8') as f:
         API_KEY = f.read().strip()
-    client = Client(
-        server_url=SERVICE_URL,
-        auth_key=API_KEY
-    )
 
-    # Define order parameters
-    GRIDPOOL_ID = 1
-    delivery_area = DeliveryArea(
-        code="10YDE-EON------1",  # TenneT
-        code_type=EnergyMarketCodeType.EUROPE_EIC
-    )
-    delivery_period = DeliveryPeriod(
-        start=datetime.fromisoformat("2024-05-01T00:00:00+00:00"),
-        duration=timedelta(minutes=15)
-    )
-    price = Price(amount=Decimal("50.0"), currency=Currency.EUR)
-    quantity = Energy(mwh=Decimal("0.1"))
-    order = await client.create_gridpool_order(
-        gridpool_id=GRIDPOOL_ID,
-        delivery_area=delivery_area,
-        delivery_period=delivery_period,
-        order_type=OrderType.LIMIT,
-        side=MarketSide.BUY,
-        price=price,
-        quantity=quantity,
-    )
+    async def create_order():
+        client = Client(
+            server_url=SERVICE_URL,
+            auth_key=API_KEY
+        )
+
+        # Define order parameters
+        gridpool_id = 1
+        delivery_area = DeliveryArea(
+            code="10YDE-EON------1",  # TenneT
+            code_type=EnergyMarketCodeType.EUROPE_EIC
+        )
+        delivery_period = DeliveryPeriod(
+            start=datetime.fromisoformat("2024-05-01T00:00:00+00:00"),
+            duration=timedelta(minutes=15)
+        )
+        price = Price(amount=Decimal("50.0"), currency=Currency.EUR)
+        quantity = Energy(mwh=Decimal("0.1"))
+        order = await client.create_gridpool_order(
+            gridpool_id=gridpool_id,
+            delivery_area=delivery_area,
+            delivery_period=delivery_period,
+            order_type=OrderType.LIMIT,
+            side=MarketSide.BUY,
+            price=price,
+            quantity=quantity,
+        )
+
+    asyncio.run(create_order())
     ```
 
 #### List Orders for a Gridpool
@@ -110,29 +120,34 @@ Orders for a given gridpool can be listed using various filters.
 ???+ example "List orders for a gridpool"
 
     ```python
+    import asyncio
     from frequenz.client.electricity_trading import ( Client, MarketSide )
 
     # Change server address if needed
     SERVICE_URL = "grpc://electricity-trading.api.frequenz.com:443?ssl=true"
     with open('/path/to/api_key.txt', 'r', encoding='utf-8') as f:
         API_KEY = f.read().strip()
-    client = Client(
-        server_url=SERVICE_URL,
-        auth_key=API_KEY
-    )
 
-    gridpool_id: int = 1
+    async def list_orders():
+        client = Client(
+            server_url=SERVICE_URL,
+            auth_key=API_KEY
+        )
 
-    # List all orders for a given gridpool
-    orders = await client.list_gridpool_orders(
-        gridpool_id=gridpool_id,
-    )
+        gridpool_id: int = 1
 
-    # List only the buy orders for a given gridpool
-    buy_orders = await client.list_gridpool_orders(
-        gridpool_id=gridpool_id,
-        side=MarketSide.BUY,
-    )
+        # List all orders for a given gridpool
+        orders = await client.list_gridpool_orders(
+            gridpool_id=gridpool_id,
+        )
+
+        # List only the buy orders for a given gridpool
+        buy_orders = await client.list_gridpool_orders(
+            gridpool_id=gridpool_id,
+            side=MarketSide.BUY,
+        )
+
+    asyncio.run(list_orders())
     ```
 
 
@@ -142,19 +157,24 @@ To get real-time updates on market trades, use the following code:
 
 ???+ example "Stream public trades"
     ```python
+    import asyncio
     from frequenz.client.electricity_trading import Client
 
     # Change server address if needed
     SERVICE_URL = "grpc://electricity-trading.api.frequenz.com:443?ssl=true"
     with open('/path/to/api_key.txt', 'r', encoding='utf-8') as f:
         API_KEY = f.read().strip()
-    client = Client(
-        server_url=SERVICE_URL,
-        auth_key=API_KEY
-    )
-    stream_public_trades = await client.stream_public_trades()
-    async for public_trade in stream_public_trades:
-        print(f"Received public trade: {public_trade}")
+
+    async def stream_trades():
+        client = Client(
+            server_url=SERVICE_URL,
+            auth_key=API_KEY
+        )
+        stream_public_trades = await client.stream_public_trades()
+        async for public_trade in stream_public_trades:
+            print(f"Received public trade: {public_trade}")
+
+    asyncio.run(stream_trades())
     ```
 
 """
