@@ -365,6 +365,32 @@ class DeliveryPeriod:
 
         return self.start == other.start and self.duration == other.duration
 
+    def __str__(self) -> str:
+        """
+        Return string representation of the DeliveryPeriod object.
+
+        Returns:
+            String representation of the DeliveryPeriod object.
+        """
+        duration_map = {
+            DeliveryDuration.MINUTES_5: "5min",
+            DeliveryDuration.MINUTES_15: "15min",
+            DeliveryDuration.MINUTES_30: "30min",
+            DeliveryDuration.MINUTES_60: "60min",
+        }
+        duration_str = duration_map.get(self.duration, "Unknown duration")
+        start_str = self.start.strftime("%Y-%m-%d %H:%M:%S %Z")
+        return f"DeliveryPeriod(start={start_str}, duration={duration_str})"
+
+    def __repr__(self) -> str:
+        """
+        Developer-friendly representation of the DeliveryPeriod object.
+
+        Returns:
+            Developer-friendly representation of the DeliveryPeriod object.
+        """
+        return self.__str__()
+
     @classmethod
     def from_pb(cls, delivery_period: delivery_duration_pb2.DeliveryPeriod) -> Self:
         """Convert a protobuf DeliveryPeriod to DeliveryPeriod object.
