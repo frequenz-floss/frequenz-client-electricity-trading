@@ -23,6 +23,7 @@ from frequenz.client.base.exception import ClientNotConnected
 from frequenz.client.base.streaming import GrpcStreamBroadcaster
 from frequenz.client.common.pagination import Params
 from google.protobuf import field_mask_pb2, struct_pb2
+from typing_extensions import override
 
 from ._types import (
     DeliveryArea,
@@ -165,6 +166,21 @@ class Client(BaseApiClient):
         """Create a new gRPC stub for the Electricity Trading service."""
         stub: Any = ElectricityTradingServiceStub(self.channel)
         self._stub = stub
+
+    @override
+    def connect(self, server_url: str | None = None) -> None:
+        """Connect to the server, possibly using a new URL.
+
+        If the client is already connected and the URL is the same as the previous URL,
+        this method does nothing. If you want to force a reconnection, you can call
+        [disconnect()][frequenz.client.base.client.BaseApiClient.disconnect] first.
+
+        Args:
+            server_url: The URL of the server to connect to. If not provided, the
+                previously used URL is used.
+        """
+        super().connect(server_url)
+        self._create_stub()
 
     @property
     def stub(self) -> ElectricityTradingServiceAsyncStub:
