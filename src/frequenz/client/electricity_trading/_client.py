@@ -177,7 +177,7 @@ class Client(BaseApiClient):
         Raises:
             ClientNotConnected: If the client is not connected to the server.
         """
-        if self._channel is None:
+        if self._stub is None:
             raise ClientNotConnected(server_url=self.server_url, operation="stub")
         return self._stub
 
