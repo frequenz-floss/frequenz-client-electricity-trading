@@ -39,9 +39,9 @@ from frequenz.client.electricity_trading import (
 def set_up() -> Generator[Any, Any, Any]:
     """Set up the test suite."""
     # Create a mock client and stub
-    _ = Client("grpc://unknown.host", connect=False)
+    client = Client("grpc://unknown.host", connect=False)
     mock_stub = AsyncMock()
-    _._stub = mock_stub  # pylint: disable=protected-access
+    client._stub = mock_stub  # pylint: disable=protected-access
 
     # Create a new event loop for each test
     loop = asyncio.new_event_loop()
@@ -66,7 +66,7 @@ def set_up() -> Generator[Any, Any, Any]:
     valid_until = delivery_start + timedelta(hours=3)
 
     yield {
-        "client": _,
+        "client": client,
         "mock_stub": mock_stub,
         "loop": loop,
         "gridpool_id": gridpool_id,
