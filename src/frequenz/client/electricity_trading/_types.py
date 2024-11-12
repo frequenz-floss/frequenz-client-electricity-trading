@@ -1018,6 +1018,45 @@ class Order:  # pylint: disable=too-many-instance-attributes
             tag=self.tag if self.tag else None,
         )
 
+    def __eq__(self, other: object) -> bool:
+        """
+        Check if two orders are equal.
+
+        Args:
+            other: The other order to compare to.
+
+        Returns:
+            True if the orders are equal, False otherwise.
+        """
+        if not isinstance(other, Order):
+            return NotImplemented
+        return (
+            self.delivery_area == other.delivery_area
+            and self.delivery_period.start == other.delivery_period.start
+            and self.delivery_period.duration == other.delivery_period.duration
+            and self.type == other.type
+            and self.side == other.side
+            and self.price == other.price
+            and self.quantity == other.quantity
+            and self.stop_price == other.stop_price
+            and self.peak_price_delta == other.peak_price_delta
+            and self.display_quantity == other.display_quantity
+            and (
+                self.execution_option == other.execution_option
+                or (
+                    self.execution_option is None
+                    and other.execution_option == OrderExecutionOption.UNSPECIFIED
+                )
+                or (
+                    self.execution_option == OrderExecutionOption.UNSPECIFIED
+                    and other.execution_option is None
+                )
+            )
+            and self.valid_until == other.valid_until
+            and self.payload == other.payload
+            and self.tag == other.tag
+        )
+
 
 @dataclass()
 class Trade:  # pylint: disable=too-many-instance-attributes
