@@ -3,17 +3,18 @@
 
 """Module to define the client class."""
 
+from __future__ import annotations
+
 import logging
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
-from typing import Awaitable, cast
+from typing import TYPE_CHECKING, Any, Awaitable, cast
 
 import grpc
 
 # pylint: disable=no-member
 from frequenz.api.electricity_trading.v1 import electricity_trading_pb2
 from frequenz.api.electricity_trading.v1.electricity_trading_pb2_grpc import (
-    ElectricityTradingServiceAsyncStub,
     ElectricityTradingServiceStub,
 )
 from frequenz.channels import Receiver
@@ -42,6 +43,12 @@ from ._types import (
     TradeState,
     UpdateOrder,
 )
+
+if TYPE_CHECKING:
+    from frequenz.api.electricity_trading.v1.electricity_trading_pb2_grpc import (
+        ElectricityTradingServiceAsyncStub,
+    )
+
 
 _logger = logging.getLogger(__name__)
 
@@ -126,10 +133,9 @@ class Client(BaseApiClient):
             self, "_initialized"
         ):  # Prevent re-initialization of existing instances
             super().__init__(server_url, connect=connect)
-            self._stub = cast(
-                ElectricityTradingServiceAsyncStub,
-                ElectricityTradingServiceStub(self.channel),
-            )
+            self._stub: ElectricityTradingServiceAsyncStub | None = None
+            if connect:
+                self._create_stub()
             self._initialized = True
 
         self._gridpool_orders_streams: dict[
@@ -154,6 +160,11 @@ class Client(BaseApiClient):
         ] = {}
 
         self._metadata = (("key", auth_key),) if auth_key else ()
+
+    def _create_stub(self) -> None:
+        """Create a new gRPC stub for the Electricity Trading service."""
+        stub: Any = ElectricityTradingServiceStub(self.channel)
+        self._stub = stub
 
     @property
     def stub(self) -> ElectricityTradingServiceAsyncStub:
