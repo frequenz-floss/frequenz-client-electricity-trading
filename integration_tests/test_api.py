@@ -34,6 +34,9 @@ if not GRIDPOOL_ID:
 GRIDPOOL_ID = int(GRIDPOOL_ID)
 SERVER_URL = "grpc://electricity-trading-testing.api.frequenz.com:443?ssl=true"
 
+MIN_QUANTITY_MW = Decimal("0.1")
+MIN_PRICE = Decimal(-9999.0)
+MAX_PRICE = Decimal(9999.0)
 
 @pytest.fixture
 async def set_up() -> dict[str, Any]:
@@ -57,6 +60,7 @@ async def set_up() -> dict[str, Any]:
     price = Price(amount=Decimal("56"), currency=Currency.EUR)
     quantity = Power(mw=Decimal("0.1"))
     order_type = OrderType.LIMIT
+    valid_until = None
 
     return {
         "client": client,
@@ -65,6 +69,7 @@ async def set_up() -> dict[str, Any]:
         "price": price,
         "quantity": quantity,
         "order_type": order_type,
+        "valid_until": valid_until,
     }
 
 
@@ -72,19 +77,28 @@ async def create_test_order(
     set_up: dict[str, Any],
     side: MarketSide = MarketSide.BUY,
     price: Price | None = None,
+    quantity: Power | None = None,
     delivery_period: DeliveryPeriod | None = None,
+    delivery_area: DeliveryArea | None = None,
+    order_type: OrderType | None = None,
+    valid_until: datetime | None = None,
 ) -> OrderDetail:
     """Create a test order with customizable parameters."""
     order_price = price or set_up["price"]
+    order_quantity = quantity or set_up["quantity"]
     order_delivery_period = delivery_period or set_up["delivery_period"]
+    order_delivery_area = delivery_area or set_up["delivery_area"]
+    order_type = order_type or set_up["order_type"]
+    order_valid_until = valid_until or set_up["valid_until"]
     order = await set_up["client"].create_gridpool_order(
         gridpool_id=GRIDPOOL_ID,
-        delivery_area=set_up["delivery_area"],
+        delivery_area=order_delivery_area,
         delivery_period=order_delivery_period,
-        order_type=set_up["order_type"],
+        order_type=order_type,
         side=side,
         price=order_price,
-        quantity=set_up["quantity"],
+        quantity=order_quantity,
+        valid_until=order_valid_until,
         tag="api-integration-test",
     )
     return order  # type: ignore
@@ -191,6 +205,17 @@ async def test_create_order_invalid_delivery_start_15_minutes_ago(
     )
     with pytest.raises(ValueError, match="delivery_period must be in the future"):
         await create_test_order(set_up, delivery_period=delivery_period)
+
+@pytest.mark.asyncio
+async def test_create_order_invalid_valid_until_one_hour_ago(
+    set_up: dict[str, Any]
+) -> None:
+    """Test creating an order with a passed valid until (one hour ago)."""
+    valid_until = (datetime.now(timezone.utc) - timedelta(hours=1)).replace(
+        minute=0, second=0, microsecond=0
+    )
+    with pytest.raises(ValueError, match="valid_until must be in the future"):
+        await create_test_order(set_up, valid_until=valid_until)
 
 
 @pytest.mark.asyncio
@@ -375,6 +400,159 @@ async def test_stream_gridpool_trades(set_up: dict[str, Any]) -> None:
         assert streamed_trade is not None, "Failed to receive streamed trade"
     except asyncio.TimeoutError:
         pytest.fail("Streaming timed out, no trade received in 15 seconds")
+
+@pytest.mark.asyncio
+async def test_create_order_zero_quantity(set_up: dict[str, Any]) -> None:
+    """Test creating an order with zero quantity."""
+    zero_quantity = Power(mw=Decimal("0"))
+    with pytest.raises(ValueError, match="Quantity must be strictly positive"):
+        await create_test_order(set_up, quantity=zero_quantity)
+
+
+@pytest.mark.asyncio
+async def test_create_order_negative_quantity(set_up: dict[str, Any]) -> None:
+    """Test creating an order with a negative quantity."""
+    negative_quantity = Power(mw=Decimal("-0.1"))
+    with pytest.raises(ValueError, match="Quantity must be strictly positive"):
+        await create_test_order(set_up, quantity=negative_quantity)
+
+
+@pytest.mark.asyncio
+async def test_create_order_maximum_price_precision_exceeded(set_up: dict[str, Any]) -> None:
+    """Test creating an order with excessive decimal precision in price."""
+    excessive_precision_price = Price(amount=Decimal("56.123"), currency=Currency.EUR)
+    with pytest.raises(ValueError, match="cannot have more than 2 decimal places"):
+        await create_test_order(set_up, price=excessive_precision_price)
+
+@pytest.mark.asyncio
+async def test_create_order_maximum_quantity_precision_exceeded(set_up: dict[str, Any]) -> None:
+    """Test creating an order with excessive decimal precision in quantity."""
+    excessive_precision_quantity = Power(mw=Decimal("0.5001"))
+    with pytest.raises(ValueError, match="The quantity cannot have more than 1 decimal."):
+        await create_test_order(set_up, quantity=excessive_precision_quantity)
+
+@pytest.mark.asyncio
+async def test_cancel_non_existent_order(set_up: dict[str, Any]) -> None:
+    """Test canceling a non-existent order and expecting an error."""
+    non_existent_order_id = 999999
+    with pytest.raises(grpc.aio.AioRpcError) as excinfo:
+        await set_up["client"].cancel_gridpool_order(GRIDPOOL_ID, non_existent_order_id)
+    assert excinfo.value.code() == grpc.StatusCode.UNAVAILABLE, "Cancelling non-existent order should return an error"
+
+
+@pytest.mark.asyncio
+async def test_cancel_already_cancelled_order(set_up: dict[str, Any]) -> None:
+    """Test cancelling an order twice to ensure idempotent behavior."""
+    order = await create_test_order(set_up)
+    await set_up["client"].cancel_gridpool_order(GRIDPOOL_ID, order.order_id)
+    with pytest.raises(grpc.aio.AioRpcError) as excinfo:
+        cancelled_order = await set_up["client"].cancel_gridpool_order(GRIDPOOL_ID, order.order_id)
+    assert excinfo.value.code() == grpc.StatusCode.INVALID_ARGUMENT, "Order is already cancelled"
+
+
+@pytest.mark.asyncio
+async def test_create_order_with_invalid_delivery_area(set_up: dict[str, Any]) -> None:
+    """Test creating an order with an invalid delivery area code."""
+    invalid_delivery_area = DeliveryArea(code="INVALID_CODE", code_type=EnergyMarketCodeType.EUROPE_EIC)
+    with pytest.raises(grpc.aio.AioRpcError) as excinfo:
+        await set_up["client"].create_gridpool_order(
+            gridpool_id=GRIDPOOL_ID,
+            delivery_area=invalid_delivery_area,
+            delivery_period=set_up["delivery_period"],
+            order_type=set_up["order_type"],
+            side=MarketSide.BUY,
+            price=set_up["price"],
+            quantity=set_up["quantity"],
+            tag="invalid-delivery-area",
+        )
+    assert excinfo.value.code() == grpc.StatusCode.UNAVAILABLE, "Delivery area not found"
+
+
+@pytest.mark.asyncio
+async def test_create_order_below_minimum_quantity(set_up: dict[str, Any]) -> None:
+    """Test creating an order with a quantity below the minimum allowed."""
+    below_min_quantity = Power(mw=MIN_QUANTITY_MW - Decimal("0.01"))
+    with pytest.raises(ValueError, match=f"Quantity must be at least {MIN_QUANTITY_MW} MW."):
+        await create_test_order(set_up, quantity=below_min_quantity)
+
+
+@pytest.mark.asyncio
+async def test_create_order_above_maximum_price(set_up: dict[str, Any]) -> None:
+    """Test creating an order with a price above the maximum allowed."""
+    above_max_price = Price(amount=MAX_PRICE + Decimal("0.01"), currency=Currency.EUR)
+    with pytest.raises(ValueError, match=f"Price must be between {MIN_PRICE} and {MAX_PRICE}."):
+        await create_test_order(set_up, price=above_max_price)
+
+
+@pytest.mark.asyncio
+async def test_create_order_at_maximum_price(set_up: dict[str, Any]) -> None:
+    """Test creating an order with the exact maximum allowed price."""
+    max_price = Price(amount=MAX_PRICE, currency=Currency.EUR)
+    order = await create_test_order(set_up, price=max_price)
+    assert order.order.price.amount == max_price.amount, "Order with maximum price was not created correctly"
+
+@pytest.mark.asyncio
+async def test_create_order_at_minimum_quantity_and_price(set_up: dict[str, Any]) -> None:
+    """Test creating an order with the exact minimum allowed quantity and price."""
+    min_quantity = Power(mw=MIN_QUANTITY_MW)
+    min_price = Price(amount=MIN_PRICE, currency=Currency.EUR)
+    order = await create_test_order(set_up, quantity=min_quantity, price=min_price)
+    assert order.order.quantity.mw == min_quantity.mw, \
+        "Order with minimum quantity was not created correctly"
+    assert order.order.price.amount == min_price.amount, \
+        "Order with minimum price was not created correctly"
+
+
+@pytest.mark.asyncio
+async def test_update_order_to_invalid_price(set_up: dict[str, Any]) -> None:
+    """Test updating an order to have a price outside the valid range."""
+    order = await create_test_order(set_up)
+    invalid_price = Price(amount=MAX_PRICE + Decimal("0.01"), currency=Currency.EUR)
+    with pytest.raises(ValueError, match=f"Price must be between {MIN_PRICE} and {MAX_PRICE}."):
+        await set_up["client"].update_gridpool_order(
+            gridpool_id=GRIDPOOL_ID, order_id=order.order_id, price=invalid_price
+        )
+
+
+
+
+@pytest.mark.asyncio
+async def test_concurrent_cancel_and_update_order(set_up: dict[str, Any]) -> None:
+    """Test concurrent cancellation and update of the same order."""
+    order = await create_test_order(set_up)
+    new_price = Price(amount=Decimal("50"), currency=Currency.EUR)
+
+    cancelled_order = await set_up["client"].cancel_gridpool_order(GRIDPOOL_ID, order.order_id)
+
+    with pytest.raises(grpc.aio.AioRpcError) as excinfo:
+        await set_up["client"].update_gridpool_order(
+            gridpool_id=GRIDPOOL_ID, order_id=order.order_id, price=new_price
+        )
+        assert excinfo.value.code() == grpc.StatusCode.INVALID_ARGUMENT, "Order is already cancelled"
+
+
+@pytest.mark.asyncio
+async def test_multiple_streams_different_filters(set_up: dict[str, Any]) -> None:
+    """Test creating multiple streams with different filters and ensure independent operation."""
+    area_1 = DeliveryArea(code="10YDE-EON------1", code_type=EnergyMarketCodeType.EUROPE_EIC)
+    area_2 = DeliveryArea(code="10YDE-RWENET---I", code_type=EnergyMarketCodeType.EUROPE_EIC)
+
+    stream_1 = await set_up["client"].stream_gridpool_orders(GRIDPOOL_ID, delivery_area=area_1)
+    stream_2 = await set_up["client"].stream_gridpool_orders(GRIDPOOL_ID, delivery_area=area_2)
+
+    # Create orders in each area to see if they appear on correct streams
+    order_1 = await create_test_order(set_up, delivery_area=area_1)
+    order_2 = await create_test_order(set_up, delivery_area=area_2)
+
+    try:
+        streamed_order_1 = await asyncio.wait_for(anext(stream_1), timeout=15)
+        streamed_order_2 = await asyncio.wait_for(anext(stream_2), timeout=15)
+
+        assert streamed_order_1.order == order_1.order, "Streamed order does not match area-specific order in stream 1"
+        assert streamed_order_2.order == order_2.order, "Streamed order does not match area-specific order in stream 2"
+    except asyncio.TimeoutError:
+        pytest.fail("Failed to receive streamed orders within timeout")
+
 
 
 @pytest.fixture(scope="session")
