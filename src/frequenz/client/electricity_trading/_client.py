@@ -385,6 +385,8 @@ class Client(BaseApiClient[ElectricityTradingServiceStub]):
             validate_decimal_places(price.amount, PRECISION_DECIMAL_PRICE, "price")
         if not isinstance(quantity, _Sentinel) and quantity is not None:
             validate_decimal_places(quantity.mw, PRECISION_DECIMAL_QUANTITY, "quantity")
+            if quantity.mw <= 0:
+                raise ValueError("Quantity must be strictly positive")
         if not isinstance(stop_price, _Sentinel) and stop_price is not None:
             raise NotImplementedError(
                 "STOP_LIMIT orders are not supported yet, so stop_price cannot be set."
