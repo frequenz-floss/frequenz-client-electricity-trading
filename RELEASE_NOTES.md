@@ -6,16 +6,10 @@
 
 ## Upgrading
 
-<!-- Here goes notes on how to upgrade from previous versions, including deprecations and what they should be replaced with -->
+* Update base client from version `0.6.1` to `0.7.0` and upgrade the `Client` constructor accordingly.
 
 ## New Features
 
-* Replace assert statements with proper exception handling
-* Implement client instance reuse to avoid redundant TCP connections
-* Move documentation and code examples to the documentation website
-* Replace the local `PaginationParams` type with the `frequenz-client-common` one
-* Remove dependency to `googleapis-common-protos`
-* Replace `Energy` with `Power` for the `quantity` representation
 * Add str function for `DeliveryPeriod` object
 * Add integration tests for the API
 * Add an equality function to the Order type

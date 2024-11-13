@@ -3,10 +3,12 @@
 
 """Module to define the client class."""
 
+from __future__ import annotations
+
 import logging
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
-from typing import Awaitable, cast
+from typing import TYPE_CHECKING, Any, Awaitable, cast
 
 import grpc
 
@@ -17,9 +19,11 @@ from frequenz.api.electricity_trading.v1.electricity_trading_pb2_grpc import (
 )
 from frequenz.channels import Receiver
 from frequenz.client.base.client import BaseApiClient
+from frequenz.client.base.exception import ClientNotConnected
 from frequenz.client.base.streaming import GrpcStreamBroadcaster
 from frequenz.client.common.pagination import Params
 from google.protobuf import field_mask_pb2, struct_pb2
+from typing_extensions import override
 
 from ._types import (
     DeliveryArea,
@@ -40,6 +44,12 @@ from ._types import (
     TradeState,
     UpdateOrder,
 )
+
+if TYPE_CHECKING:
+    from frequenz.api.electricity_trading.v1.electricity_trading_pb2_grpc import (
+        ElectricityTradingServiceAsyncStub,
+    )
+
 
 _logger = logging.getLogger(__name__)
 
@@ -81,7 +91,7 @@ def validate_decimal_places(value: Decimal, decimal_places: int, name: str) -> N
         ) from exc
 
 
-class Client(BaseApiClient[ElectricityTradingServiceStub]):
+class Client(BaseApiClient):
     """Electricity trading client."""
 
     _instances: dict[tuple[str, str | None], "Client"] = {}
@@ -123,7 +133,10 @@ class Client(BaseApiClient[ElectricityTradingServiceStub]):
         if not hasattr(
             self, "_initialized"
         ):  # Prevent re-initialization of existing instances
-            super().__init__(server_url, ElectricityTradingServiceStub, connect=connect)
+            super().__init__(server_url, connect=connect)
+            self._stub: ElectricityTradingServiceAsyncStub | None = None
+            if connect:
+                self._create_stub()
             self._initialized = True
 
         self._gridpool_orders_streams: dict[
@@ -148,6 +161,41 @@ class Client(BaseApiClient[ElectricityTradingServiceStub]):
         ] = {}
 
         self._metadata = (("key", auth_key),) if auth_key else ()
+
+    def _create_stub(self) -> None:
+        """Create a new gRPC stub for the Electricity Trading service."""
+        stub: Any = ElectricityTradingServiceStub(self.channel)
+        self._stub = stub
+
+    @override
+    def connect(self, server_url: str | None = None) -> None:
+        """Connect to the server, possibly using a new URL.
+
+        If the client is already connected and the URL is the same as the previous URL,
+        this method does nothing. If you want to force a reconnection, you can call
+        [disconnect()][frequenz.client.base.client.BaseApiClient.disconnect] first.
+
+        Args:
+            server_url: The URL of the server to connect to. If not provided, the
+                previously used URL is used.
+        """
+        super().connect(server_url)
+        self._create_stub()
+
+    @property
+    def stub(self) -> ElectricityTradingServiceAsyncStub:
+        """
+        Get the gRPC stub for the Electricity Trading service.
+
+        Returns:
+            The gRPC stub.
+
+        Raises:
+            ClientNotConnected: If the client is not connected to the server.
+        """
+        if self._stub is None:
+            raise ClientNotConnected(server_url=self.server_url, operation="stub")
+        return self._stub
 
     async def stream_gridpool_orders(
         # pylint: disable=too-many-arguments, too-many-positional-arguments
@@ -192,7 +240,7 @@ class Client(BaseApiClient[ElectricityTradingServiceStub]):
             try:
                 self._gridpool_orders_streams[stream_key] = GrpcStreamBroadcaster(
                     f"electricity-trading-{stream_key}",
-                    lambda: self.stub.ReceiveGridpoolOrdersStream(  # type: ignore
+                    lambda: self.stub.ReceiveGridpoolOrdersStream(
                         electricity_trading_pb2.ReceiveGridpoolOrdersStreamRequest(
                             gridpool_id=gridpool_id,
                             filter=gridpool_order_filter.to_pb(),
@@ -251,7 +299,7 @@ class Client(BaseApiClient[ElectricityTradingServiceStub]):
             try:
                 self._gridpool_trades_streams[stream_key] = GrpcStreamBroadcaster(
                     f"electricity-trading-{stream_key}",
-                    lambda: self.stub.ReceiveGridpoolTradesStream(  # type: ignore
+                    lambda: self.stub.ReceiveGridpoolTradesStream(
                         electricity_trading_pb2.ReceiveGridpoolTradesStreamRequest(
                             gridpool_id=gridpool_id,
                             filter=gridpool_trade_filter.to_pb(),
@@ -303,7 +351,7 @@ class Client(BaseApiClient[ElectricityTradingServiceStub]):
                 self._public_trades_streams[public_trade_filter] = (
                     GrpcStreamBroadcaster(
                         f"electricity-trading-{public_trade_filter}",
-                        lambda: self.stub.ReceivePublicTradesStream(  # type: ignore
+                        lambda: self.stub.ReceivePublicTradesStream(
                             electricity_trading_pb2.ReceivePublicTradesStreamRequest(
                                 filter=public_trade_filter.to_pb(),
                             ),
