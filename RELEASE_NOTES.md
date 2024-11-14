@@ -6,13 +6,11 @@
 
 ## Upgrading
 
-* Update base client from version `0.6.1` to `0.7.0` and upgrade the `Client` constructor accordingly.
+<!-- Here goes notes on how to upgrade from previous versions, including deprecations and what they should be replaced with -->
 
 ## New Features
 
-* Add str function for `DeliveryPeriod` object
-* Add integration tests for the API
-* Add an equality function to the Order type
+<!-- Here goes the main new features and examples or instructions on how to use them -->
 
 ## Bug Fixes
 
