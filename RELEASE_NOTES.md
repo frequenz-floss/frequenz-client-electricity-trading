@@ -10,7 +10,9 @@
 
 ## New Features
 
-<!-- Here goes the main new features and examples or instructions on how to use them -->
+* Extra validation check to ensure the quantity is strictly positive.
+* Extra validation check to ensure the quantity and price are within the allowed bounds.
+* Add more edge cases to the integration tests
 
 ## Bug Fixes
 
