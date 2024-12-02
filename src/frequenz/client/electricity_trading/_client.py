@@ -58,6 +58,10 @@ NO_VALUE = _Sentinel()
 PRECISION_DECIMAL_PRICE = 2
 PRECISION_DECIMAL_QUANTITY = 1
 
+MIN_QUANTITY_MW = Decimal("0.1")
+MIN_PRICE = Decimal(-9999.0)
+MAX_PRICE = Decimal(9999.0)
+
 
 def validate_decimal_places(value: Decimal, decimal_places: int, name: str) -> None:
     """
@@ -382,11 +386,15 @@ class Client(BaseApiClient[ElectricityTradingServiceStub]):
             NotImplementedError: If the order type is not supported.
         """
         if not isinstance(price, _Sentinel) and price is not None:
+            if price.amount < MIN_PRICE or price.amount > MAX_PRICE:
+                raise ValueError(f"Price must be between {MIN_PRICE} and {MAX_PRICE}.")
             validate_decimal_places(price.amount, PRECISION_DECIMAL_PRICE, "price")
         if not isinstance(quantity, _Sentinel) and quantity is not None:
-            validate_decimal_places(quantity.mw, PRECISION_DECIMAL_QUANTITY, "quantity")
             if quantity.mw <= 0:
                 raise ValueError("Quantity must be strictly positive")
+            if quantity.mw < MIN_QUANTITY_MW:
+                raise ValueError(f"Quantity must be at least {MIN_QUANTITY_MW} MW.")
+            validate_decimal_places(quantity.mw, PRECISION_DECIMAL_QUANTITY, "quantity")
         if not isinstance(stop_price, _Sentinel) and stop_price is not None:
             raise NotImplementedError(
                 "STOP_LIMIT orders are not supported yet, so stop_price cannot be set."
