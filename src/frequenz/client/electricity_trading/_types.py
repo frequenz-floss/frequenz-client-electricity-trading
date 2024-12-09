@@ -115,6 +115,14 @@ class Price:
         decimal_amount.value = str(self.amount)
         return price_pb2.Price(amount=decimal_amount, currency=self.currency.to_pb())
 
+    def __str__(self) -> str:
+        """Return string representation of the Price object.
+
+        Returns:
+            String representation of the Price object.
+        """
+        return f"{self.amount} {self.currency.name}"
+
 
 @dataclass(frozen=True)
 class Power:
@@ -143,6 +151,14 @@ class Power:
         decimal_mw = decimal_pb2.Decimal()
         decimal_mw.value = str(self.mw)
         return power_pb2.Power(mw=decimal_mw)
+
+    def __str__(self) -> str:
+        """Return the string representation of the Power object.
+
+        Returns:
+            The string representation of the Power object.
+        """
+        return f"{self.mw} MW"
 
 
 class EnergyMarketCodeType(enum.Enum):
