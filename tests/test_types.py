@@ -315,8 +315,20 @@ def test_price_from_pb() -> None:
     )
 
 
-def test_energy_to_pb() -> None:
-    """Test the client energy type conversions to protobuf."""
+def test_price_formatting() -> None:
+    """Test the client price type formatting."""
+    price = Price(amount=Decimal("800"), currency=Currency.JPY)
+    assert str(price) == "800 JPY"
+    price = Price(amount=Decimal("-100.3"), currency=Currency.CHF)
+    assert str(price) == "-100.3 CHF"
+    price = Price(amount=Decimal("-103.00"), currency=Currency.USD)
+    assert str(price) == "-103.00 USD"
+    price = Price(amount=Decimal("400.123"), currency=Currency.EUR)
+    assert str(price) == "400.123 EUR"
+
+
+def test_power_to_pb() -> None:
+    """Test the client power type conversions to protobuf."""
     assert_conversion_to_pb(
         original=Power(mw=Decimal("5")),
         expected_pb=power_pb2.Power(mw=decimal_pb2.Decimal(value="5")),
@@ -324,13 +336,25 @@ def test_energy_to_pb() -> None:
     )
 
 
-def test_energy_from_pb() -> None:
-    """Test the client energy type conversions from protobuf."""
+def test_power_from_pb() -> None:
+    """Test the client power type conversions from protobuf."""
     assert_conversion_from_pb(
         original_pb=power_pb2.Power(mw=decimal_pb2.Decimal(value="5")),
         expected=Power(mw=Decimal("5")),
         assert_func=assert_equal,
     )
+
+
+def test_power_formatting() -> None:
+    """Test the client power type formatting."""
+    power = Power(mw=Decimal("5"))
+    assert str(power) == "5 MW"
+    power = Power(mw=Decimal("5.1"))
+    assert str(power) == "5.1 MW"
+    power = Power(mw=Decimal("5.100"))
+    assert str(power) == "5.100 MW"
+    power = Power(mw=Decimal("-5.123"))
+    assert str(power) == "-5.123 MW"
 
 
 def test_delivery_duration_to_pb() -> None:
