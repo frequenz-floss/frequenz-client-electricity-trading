@@ -25,7 +25,7 @@ with the specific version you wish to install.
 
 # Choose the version you want to install
 ```bash
-VERSION=0.2.3
+VERSION=0.2.5
 pip install frequenz-client-electricity-trading==$VERSION
 ```
 
@@ -69,10 +69,10 @@ Here's an example of how to create a limit order to buy energy.
         Currency,
         DeliveryArea,
         DeliveryPeriod,
-        Energy,
         EnergyMarketCodeType,
         MarketSide,
         OrderType,
+        Power,
         Price,
     )
     from datetime import datetime, timedelta
@@ -100,7 +100,7 @@ Here's an example of how to create a limit order to buy energy.
             duration=timedelta(minutes=15)
         )
         price = Price(amount=Decimal("50.0"), currency=Currency.EUR)
-        quantity = Energy(mwh=Decimal("0.1"))
+        quantity = Power(mw=Decimal("0.1"))
         order = await client.create_gridpool_order(
             gridpool_id=gridpool_id,
             delivery_area=delivery_area,
