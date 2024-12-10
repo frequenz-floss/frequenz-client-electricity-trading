@@ -315,8 +315,8 @@ def test_price_from_pb() -> None:
     )
 
 
-def test_energy_to_pb() -> None:
-    """Test the client energy type conversions to protobuf."""
+def test_power_to_pb() -> None:
+    """Test the client power type conversions to protobuf."""
     assert_conversion_to_pb(
         original=Power(mw=Decimal("5")),
         expected_pb=power_pb2.Power(mw=decimal_pb2.Decimal(value="5")),
@@ -324,8 +324,8 @@ def test_energy_to_pb() -> None:
     )
 
 
-def test_energy_from_pb() -> None:
-    """Test the client energy type conversions from protobuf."""
+def test_power_from_pb() -> None:
+    """Test the client power type conversions from protobuf."""
     assert_conversion_from_pb(
         original_pb=power_pb2.Power(mw=decimal_pb2.Decimal(value="5")),
         expected=Power(mw=Decimal("5")),
