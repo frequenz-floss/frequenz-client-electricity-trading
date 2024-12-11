@@ -16,6 +16,7 @@
 * Add idiomatic string representations for `Power` and `Price` classes.
 * Add support for timeouts in the gRPC function calls
 * Export Client constants for external use
+* Fetch subsequent paginated data for `list_*` methods
 
 ## Bug Fixes
 
