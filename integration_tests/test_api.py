@@ -225,10 +225,12 @@ async def test_list_gridpool_orders(set_up: dict[str, Any]) -> None:
     created_orders_id = [(await create_test_order(set_up)).order_id for _ in range(10)]
 
     # List the orders and check they are present
-    orders = await set_up["client"].list_gridpool_orders(
-        gridpool_id=GRIDPOOL_ID, delivery_period=set_up["delivery_period"]
-    )  # filter by delivery period to avoid fetching too many orders
-
+    # filter by delivery period to avoid fetching too many orders
+    orders = [
+        order async for order in set_up["client"].list_gridpool_orders(
+            gridpool_id=GRIDPOOL_ID, 
+            delivery_period=set_up["delivery_period"])
+    ]
     listed_orders_id = [order.order_id for order in orders]
     for order_id in created_orders_id:
         assert order_id in listed_orders_id, f"Order ID {order_id} not found"
@@ -327,7 +329,11 @@ async def test_cancel_all_orders(set_up: dict[str, Any]) -> None:
     # Cancel all orders and check that did indeed get cancelled
     await set_up["client"].cancel_all_gridpool_orders(GRIDPOOL_ID)
 
-    orders = await set_up["client"].list_gridpool_orders(gridpool_id=GRIDPOOL_ID)
+    orders = [
+        order async for order in set_up["client"].list_gridpool_orders(
+            gridpool_id=GRIDPOOL_ID,
+        )
+    ]
 
     for order in orders:
         assert (
@@ -339,22 +345,32 @@ async def test_cancel_all_orders(set_up: dict[str, Any]) -> None:
 async def test_list_gridpool_trades(set_up: dict[str, Any]) -> None:
     """Test listing gridpool trades."""
     buy_order, sell_order = await create_test_trade(set_up)
-    trades = await set_up["client"].list_gridpool_trades(
-        GRIDPOOL_ID,
-        delivery_period=buy_order.order.delivery_period,
-    )
+    trades = [
+        trade async for trade in set_up["client"].list_gridpool_trades(
+                GRIDPOOL_ID,
+                delivery_period=buy_order.order.delivery_period,
+            )
+    ]
     assert len(trades) >= 1
 
 
 @pytest.mark.asyncio
 async def test_list_public_trades(set_up: dict[str, Any]) -> None:
     """Test listing public trades."""
-    public_trades = await set_up["client"].list_public_trades(
-        delivery_period=set_up["delivery_period"],
-        max_nr_trades=10,
-    )
-    assert len(public_trades) >= 0
+    delivery_period = DeliveryPeriod(
+            start=datetime.fromisoformat("2024-06-10T10:00:00+00:00"),
+            duration=timedelta(minutes=15)
+        )
 
+    public_trades = []
+    counter = 0
+    async for trade in set_up["client"].list_public_trades(delivery_period=delivery_period):
+        public_trades.append(trade)
+        counter += 1
+        if counter == 10:
+            break
+
+    assert len(public_trades) == 10, "Failed to retrieve 10 public trades"
 
 @pytest.mark.asyncio
 async def test_stream_gridpool_orders(set_up: dict[str, Any]) -> None:
