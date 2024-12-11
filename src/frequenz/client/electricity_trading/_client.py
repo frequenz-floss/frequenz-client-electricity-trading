@@ -5,10 +5,11 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
-from typing import Awaitable, cast
+from typing import Any, Awaitable, Callable, cast
 
 import grpc
 
@@ -89,6 +90,38 @@ def validate_decimal_places(value: Decimal, decimal_places: int, name: str) -> N
         raise ValueError(
             f"The value {value} for {name} is not a valid decimal number."
         ) from exc
+
+
+async def grpc_call_with_timeout(
+    call: Callable[..., Awaitable[Any]],
+    *args: Any,
+    timeout: timedelta | None = None,
+    **kwargs: Any,
+) -> Any:
+    """
+    Call a gRPC function with a timeout (in seconds).
+
+    Args:
+        call: The gRPC method to be called.
+        *args: Positional arguments for the gRPC call.
+        timeout: Timeout duration, defaults to None.
+        **kwargs: Keyword arguments for the gRPC call.
+
+    Returns:
+        The result of the gRPC call.
+
+    Raises:
+        asyncio.TimeoutError: If the call exceeds the timeout.
+    """
+    if timeout is None:
+        return await call(*args, **kwargs)
+    try:
+        return await asyncio.wait_for(
+            call(*args, **kwargs), timeout=timeout.total_seconds()
+        )
+    except asyncio.TimeoutError:
+        _logger.exception("Timeout while calling %s", call)
+        raise
 
 
 class Client(BaseApiClient[ElectricityTradingServiceStub]):
@@ -447,6 +480,7 @@ class Client(BaseApiClient[ElectricityTradingServiceStub]):
         valid_until: datetime | None = None,
         payload: dict[str, struct_pb2.Value] | None = None,
         tag: str | None = None,
+        timeout: timedelta | None = None,
     ) -> OrderDetail:
         """
         Create a gridpool order.
@@ -466,6 +500,7 @@ class Client(BaseApiClient[ElectricityTradingServiceStub]):
             valid_until: Valid until of the order.
             payload: Payload of the order.
             tag: Tag of the order.
+            timeout: Timeout duration, defaults to None.
 
         Returns:
             The created order.
@@ -503,12 +538,13 @@ class Client(BaseApiClient[ElectricityTradingServiceStub]):
         try:
             response = await cast(
                 Awaitable[electricity_trading_pb2.CreateGridpoolOrderResponse],
-                self.stub.CreateGridpoolOrder(
+                grpc_call_with_timeout(
+                    self.stub.CreateGridpoolOrder,
                     electricity_trading_pb2.CreateGridpoolOrderRequest(
-                        gridpool_id=gridpool_id,
-                        order=order.to_pb(),
+                        gridpool_id=gridpool_id, order=order.to_pb()
                     ),
                     metadata=self._metadata,
+                    timeout=timeout,
                 ),
             )
         except grpc.RpcError as e:
@@ -531,6 +567,7 @@ class Client(BaseApiClient[ElectricityTradingServiceStub]):
         valid_until: datetime | None | _Sentinel = NO_VALUE,
         payload: dict[str, struct_pb2.Value] | None | _Sentinel = NO_VALUE,
         tag: str | None | _Sentinel = NO_VALUE,
+        timeout: timedelta | None = None,
     ) -> OrderDetail:
         """
         Update an existing order for a given Gridpool.
@@ -553,6 +590,7 @@ class Client(BaseApiClient[ElectricityTradingServiceStub]):
             payload: Updated user-defined payload individual to a specific order. This can be any
                 data that the user wants to associate with the order.
             tag: Updated user-defined tag to group related orders.
+            timeout: Timeout duration, defaults to None.
 
         Returns:
             The updated order.
@@ -615,7 +653,8 @@ class Client(BaseApiClient[ElectricityTradingServiceStub]):
         try:
             response = await cast(
                 Awaitable[electricity_trading_pb2.UpdateGridpoolOrderResponse],
-                self.stub.UpdateGridpoolOrder(
+                grpc_call_with_timeout(
+                    self.stub.UpdateGridpoolOrder,
                     electricity_trading_pb2.UpdateGridpoolOrderRequest(
                         gridpool_id=gridpool_id,
                         order_id=order_id,
@@ -623,6 +662,7 @@ class Client(BaseApiClient[ElectricityTradingServiceStub]):
                         update_mask=update_mask,
                     ),
                     metadata=self._metadata,
+                    timeout=timeout,
                 ),
             )
             return OrderDetail.from_pb(response.order_detail)
@@ -632,7 +672,7 @@ class Client(BaseApiClient[ElectricityTradingServiceStub]):
             raise
 
     async def cancel_gridpool_order(
-        self, gridpool_id: int, order_id: int
+        self, gridpool_id: int, order_id: int, timeout: timedelta | None = None
     ) -> OrderDetail:
         """
         Cancel a single order for a given Gridpool.
@@ -640,6 +680,7 @@ class Client(BaseApiClient[ElectricityTradingServiceStub]):
         Args:
             gridpool_id: The Gridpool to cancel the order for.
             order_id: The order to cancel.
+            timeout: Timeout duration, defaults to None.
 
         Returns:
             The cancelled order.
@@ -650,11 +691,13 @@ class Client(BaseApiClient[ElectricityTradingServiceStub]):
         try:
             response = await cast(
                 Awaitable[electricity_trading_pb2.CancelGridpoolOrderResponse],
-                self.stub.CancelGridpoolOrder(
+                grpc_call_with_timeout(
+                    self.stub.CancelGridpoolOrder,
                     electricity_trading_pb2.CancelGridpoolOrderRequest(
                         gridpool_id=gridpool_id, order_id=order_id
                     ),
                     metadata=self._metadata,
+                    timeout=timeout,
                 ),
             )
             return OrderDetail.from_pb(response.order_detail)
@@ -662,12 +705,15 @@ class Client(BaseApiClient[ElectricityTradingServiceStub]):
             _logger.exception("Error occurred while cancelling gridpool order: %s", e)
             raise
 
-    async def cancel_all_gridpool_orders(self, gridpool_id: int) -> int:
+    async def cancel_all_gridpool_orders(
+        self, gridpool_id: int, timeout: timedelta | None = None
+    ) -> int:
         """
         Cancel all orders for a specific Gridpool.
 
         Args:
             gridpool_id: The Gridpool to cancel the orders for.
+            timeout: Timeout duration, defaults to None.
 
         Returns:
             The ID of the Gridpool for which the orders were cancelled.
@@ -678,11 +724,13 @@ class Client(BaseApiClient[ElectricityTradingServiceStub]):
         try:
             response = await cast(
                 Awaitable[electricity_trading_pb2.CancelAllGridpoolOrdersResponse],
-                self.stub.CancelAllGridpoolOrders(
+                grpc_call_with_timeout(
+                    self.stub.CancelAllGridpoolOrders,
                     electricity_trading_pb2.CancelAllGridpoolOrdersRequest(
                         gridpool_id=gridpool_id
                     ),
                     metadata=self._metadata,
+                    timeout=timeout,
                 ),
             )
 
@@ -693,13 +741,16 @@ class Client(BaseApiClient[ElectricityTradingServiceStub]):
             )
             raise
 
-    async def get_gridpool_order(self, gridpool_id: int, order_id: int) -> OrderDetail:
+    async def get_gridpool_order(
+        self, gridpool_id: int, order_id: int, timeout: timedelta | None = None
+    ) -> OrderDetail:
         """
         Get a single order from a given gridpool.
 
         Args:
             gridpool_id: The Gridpool to retrieve the order for.
             order_id: The order to retrieve.
+            timeout: Timeout duration, defaults to None.
 
         Returns:
             The order.
@@ -710,11 +761,13 @@ class Client(BaseApiClient[ElectricityTradingServiceStub]):
         try:
             response = await cast(
                 Awaitable[electricity_trading_pb2.GetGridpoolOrderResponse],
-                self.stub.GetGridpoolOrder(
+                grpc_call_with_timeout(
+                    self.stub.GetGridpoolOrder,
                     electricity_trading_pb2.GetGridpoolOrderRequest(
                         gridpool_id=gridpool_id, order_id=order_id
                     ),
                     metadata=self._metadata,
+                    timeout=timeout,
                 ),
             )
 
@@ -724,7 +777,7 @@ class Client(BaseApiClient[ElectricityTradingServiceStub]):
             raise
 
     async def list_gridpool_orders(
-        # pylint: disable=too-many-arguments, too-many-positional-arguments
+        # pylint: disable=too-many-arguments, too-many-positional-arguments, too-many-locals
         self,
         gridpool_id: int,
         order_states: list[OrderState] | None = None,
@@ -734,6 +787,7 @@ class Client(BaseApiClient[ElectricityTradingServiceStub]):
         tag: str | None = None,
         max_nr_orders: int | None = None,
         page_token: str | None = None,
+        timeout: timedelta | None = None,
     ) -> list[OrderDetail]:
         """
         List orders for a specific Gridpool with optional filters.
@@ -747,6 +801,7 @@ class Client(BaseApiClient[ElectricityTradingServiceStub]):
             tag: The tag to filter by.
             max_nr_orders: The maximum number of orders to return.
             page_token: The page token to use for pagination.
+            timeout: Timeout duration, defaults to None.
 
         Returns:
             The list of orders for that gridpool.
@@ -770,13 +825,15 @@ class Client(BaseApiClient[ElectricityTradingServiceStub]):
         try:
             response = await cast(
                 Awaitable[electricity_trading_pb2.ListGridpoolOrdersResponse],
-                self.stub.ListGridpoolOrders(
+                grpc_call_with_timeout(
+                    self.stub.ListGridpoolOrders,
                     electricity_trading_pb2.ListGridpoolOrdersRequest(
                         gridpool_id=gridpool_id,
                         filter=gridpool_order_filer.to_pb(),
                         pagination_params=pagination_params.to_proto(),
                     ),
                     metadata=self._metadata,
+                    timeout=timeout,
                 ),
             )
 
@@ -806,6 +863,7 @@ class Client(BaseApiClient[ElectricityTradingServiceStub]):
         delivery_area: DeliveryArea | None = None,
         max_nr_trades: int | None = None,
         page_token: str | None = None,
+        timeout: timedelta | None = None,
     ) -> list[Trade]:
         """
         List trades for a specific Gridpool with optional filters.
@@ -819,6 +877,7 @@ class Client(BaseApiClient[ElectricityTradingServiceStub]):
             delivery_area: The delivery area to filter by.
             max_nr_trades: The maximum number of trades to return.
             page_token: The page token to use for pagination.
+            timeout: Timeout duration, defaults to None.
 
         Returns:
             The list of trades for the given gridpool.
@@ -842,13 +901,15 @@ class Client(BaseApiClient[ElectricityTradingServiceStub]):
         try:
             response = await cast(
                 Awaitable[electricity_trading_pb2.ListGridpoolTradesResponse],
-                self.stub.ListGridpoolTrades(
+                grpc_call_with_timeout(
+                    self.stub.ListGridpoolTrades,
                     electricity_trading_pb2.ListGridpoolTradesRequest(
                         gridpool_id=gridpool_id,
                         filter=gridpool_trade_filter.to_pb(),
                         pagination_params=pagination_params.to_proto(),
                     ),
                     metadata=self._metadata,
+                    timeout=timeout,
                 ),
             )
 
@@ -866,6 +927,7 @@ class Client(BaseApiClient[ElectricityTradingServiceStub]):
         sell_delivery_area: DeliveryArea | None = None,
         max_nr_trades: int | None = None,
         page_token: str | None = None,
+        timeout: timedelta | None = None,
     ) -> list[PublicTrade]:
         """
         List all executed public orders with optional filters.
@@ -877,6 +939,7 @@ class Client(BaseApiClient[ElectricityTradingServiceStub]):
             sell_delivery_area: The sell delivery area to filter by.
             max_nr_trades: The maximum number of trades to return.
             page_token: The page token to use for pagination.
+            timeout: Timeout duration, defaults to None.
 
         Returns:
             The list of public trades.
@@ -899,12 +962,14 @@ class Client(BaseApiClient[ElectricityTradingServiceStub]):
         try:
             response = await cast(
                 Awaitable[electricity_trading_pb2.ListPublicTradesResponse],
-                self.stub.ListPublicTrades(
+                grpc_call_with_timeout(
+                    self.stub.ListPublicTrades,
                     electricity_trading_pb2.ListPublicTradesRequest(
                         filter=public_trade_filter.to_pb(),
                         pagination_params=pagination_params.to_proto(),
                     ),
                     metadata=self._metadata,
+                    timeout=timeout,
                 ),
             )
 
