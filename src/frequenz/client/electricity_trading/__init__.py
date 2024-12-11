@@ -179,7 +179,14 @@ To get real-time updates on market trades, use the following code:
 
 """
 
-from ._client import Client
+from ._client import (
+    MAX_PRICE,
+    MIN_PRICE,
+    MIN_QUANTITY_MW,
+    PRECISION_DECIMAL_PRICE,
+    PRECISION_DECIMAL_QUANTITY,
+    Client,
+)
 from ._types import (
     Currency,
     DeliveryArea,
@@ -231,4 +238,9 @@ __all__ = [
     "StateReason",
     "Trade",
     "TradeState",
+    "MAX_PRICE",
+    "MIN_PRICE",
+    "MIN_QUANTITY_MW",
+    "PRECISION_DECIMAL_QUANTITY",
+    "PRECISION_DECIMAL_PRICE",
 ]
