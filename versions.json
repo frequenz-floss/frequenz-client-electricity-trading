@@ -1,1 +1,53 @@
-[{"version":"my-version","title":"my-version","aliases":[]},{"version":"v0.4-dev","title":"v0.4-dev (8385158)","aliases":["v0-dev","latest-dev"]},{"version":"v0.3-dev","title":"v0.3-dev (0e6198d)","aliases":[]},{"version":"v0.3","title":"v0.3.0","aliases":["v0","latest"]},{"version":"v0.2-dev","title":"v0.2-dev (a35a6e8)","aliases":[]},{"version":"v0.2","title":"v0.2.5","aliases":[]},{"version":"v0.1-dev","title":"v0.1-dev","aliases":[]},{"version":"v0.1","title":"v0.1.0","aliases":[]},{"version":"v0.0-dev","title":"v0.0-dev (e5d9ca7)","aliases":[]}]
+[
+  {
+    "version": "my-version",
+    "title": "my-version",
+    "aliases": []
+  },
+  {
+    "version": "v0.4-dev",
+    "title": "v0.4-dev (9e6d723)",
+    "aliases": [
+      "v0-dev",
+      "latest-dev"
+    ]
+  },
+  {
+    "version": "v0.3",
+    "title": "v0.3.0",
+    "aliases": [
+      "v0",
+      "latest"
+    ]
+  },
+  {
+    "version": "v0.3-dev",
+    "title": "v0.3-dev (0e6198d)",
+    "aliases": []
+  },
+  {
+    "version": "v0.2",
+    "title": "v0.2.5",
+    "aliases": []
+  },
+  {
+    "version": "v0.2-dev",
+    "title": "v0.2-dev (a35a6e8)",
+    "aliases": []
+  },
+  {
+    "version": "v0.1",
+    "title": "v0.1.0",
+    "aliases": []
+  },
+  {
+    "version": "v0.1-dev",
+    "title": "v0.1-dev",
+    "aliases": []
+  },
+  {
+    "version": "v0.0-dev",
+    "title": "v0.0-dev (e5d9ca7)",
+    "aliases": []
+  }
+]
