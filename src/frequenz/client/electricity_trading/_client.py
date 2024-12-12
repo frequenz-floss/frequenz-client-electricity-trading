@@ -9,9 +9,10 @@ import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
-from typing import Any, Awaitable, Callable, cast
+from typing import Any, AsyncIterator, Awaitable, Callable, cast
 
 import grpc
+from frequenz.api.common.v1.pagination.pagination_params_pb2 import PaginationParams
 
 # pylint: disable=no-member
 from frequenz.api.electricity_trading.v1 import (
@@ -785,10 +786,9 @@ class Client(BaseApiClient[ElectricityTradingServiceStub]):
         delivery_period: DeliveryPeriod | None = None,
         delivery_area: DeliveryArea | None = None,
         tag: str | None = None,
-        max_nr_orders: int | None = None,
-        page_token: str | None = None,
+        page_size: int | None = None,
         timeout: timedelta | None = None,
-    ) -> list[OrderDetail]:
+    ) -> AsyncIterator[OrderDetail]:
         """
         List orders for a specific Gridpool with optional filters.
 
@@ -799,17 +799,16 @@ class Client(BaseApiClient[ElectricityTradingServiceStub]):
             delivery_period: The delivery period to filter by.
             delivery_area: The delivery area to filter by.
             tag: The tag to filter by.
-            max_nr_orders: The maximum number of orders to return.
-            page_token: The page token to use for pagination.
+            page_size: The number of orders to return per page.
             timeout: Timeout duration, defaults to None.
 
-        Returns:
-            The list of orders for that gridpool.
+        Yields:
+            The list of orders for the given gridpool.
 
         Raises:
             grpc.RpcError: If an error occurs while listing the orders.
         """
-        gridpool_order_filer = GridpoolOrderFilter(
+        gridpool_order_filter = GridpoolOrderFilter(
             order_states=order_states,
             side=side,
             delivery_period=delivery_period,
@@ -817,40 +816,40 @@ class Client(BaseApiClient[ElectricityTradingServiceStub]):
             tag=tag,
         )
 
-        pagination_params = Params(
-            page_size=max_nr_orders,
-            page_token=page_token,
+        request = electricity_trading_pb2.ListGridpoolOrdersRequest(
+            gridpool_id=gridpool_id,
+            filter=gridpool_order_filter.to_pb(),
+            pagination_params=(
+                Params(page_size=page_size).to_proto() if page_size else None
+            ),
         )
-
-        try:
-            response = await cast(
-                Awaitable[electricity_trading_pb2.ListGridpoolOrdersResponse],
-                grpc_call_with_timeout(
-                    self.stub.ListGridpoolOrders,
-                    electricity_trading_pb2.ListGridpoolOrdersRequest(
-                        gridpool_id=gridpool_id,
-                        filter=gridpool_order_filer.to_pb(),
-                        pagination_params=pagination_params.to_proto(),
+        while True:
+            try:
+                response = await cast(
+                    Awaitable[electricity_trading_pb2.ListGridpoolOrdersResponse],
+                    grpc_call_with_timeout(
+                        self.stub.ListGridpoolOrders,
+                        request,
+                        metadata=self._metadata,
+                        timeout=timeout,
                     ),
-                    metadata=self._metadata,
-                    timeout=timeout,
-                ),
-            )
+                )
 
-            orders: list[OrderDetail] = []
-            for order_detail in response.order_details:
-                try:
-                    orders.append(OrderDetail.from_pb(order_detail))
-                except InvalidOperation:
-                    _logger.error(
-                        "Failed to convert order details for order: %s",
-                        str(order_detail).replace("\n", ""),
+                for order_detail in response.order_details:
+                    yield OrderDetail.from_pb(order_detail)
+
+                if response.pagination_info.next_page_token:
+                    request.pagination_params.CopyFrom(
+                        PaginationParams(
+                            page_token=response.pagination_info.next_page_token
+                        )
                     )
+                else:
+                    break
 
-            return orders
-        except grpc.RpcError as e:
-            _logger.exception("Error occurred while listing gridpool orders: %s", e)
-            raise
+            except grpc.RpcError as e:
+                _logger.exception("Error occurred while listing gridpool orders: %s", e)
+                raise
 
     async def list_gridpool_trades(
         # pylint: disable=too-many-arguments, too-many-positional-arguments
@@ -861,10 +860,9 @@ class Client(BaseApiClient[ElectricityTradingServiceStub]):
         market_side: MarketSide | None = None,
         delivery_period: DeliveryPeriod | None = None,
         delivery_area: DeliveryArea | None = None,
-        max_nr_trades: int | None = None,
-        page_token: str | None = None,
+        page_size: int | None = None,
         timeout: timedelta | None = None,
-    ) -> list[Trade]:
+    ) -> AsyncIterator[Trade]:
         """
         List trades for a specific Gridpool with optional filters.
 
@@ -875,11 +873,10 @@ class Client(BaseApiClient[ElectricityTradingServiceStub]):
             market_side: The side of the market to filter by.
             delivery_period: The delivery period to filter by.
             delivery_area: The delivery area to filter by.
-            max_nr_trades: The maximum number of trades to return.
-            page_token: The page token to use for pagination.
+            page_size: The number of trades to return per page.
             timeout: Timeout duration, defaults to None.
 
-        Returns:
+        Yields:
             The list of trades for the given gridpool.
 
         Raises:
@@ -893,30 +890,41 @@ class Client(BaseApiClient[ElectricityTradingServiceStub]):
             delivery_area=delivery_area,
         )
 
-        pagination_params = Params(
-            page_size=max_nr_trades,
-            page_token=page_token,
+        request = electricity_trading_pb2.ListGridpoolTradesRequest(
+            gridpool_id=gridpool_id,
+            filter=gridpool_trade_filter.to_pb(),
+            pagination_params=(
+                Params(page_size=page_size).to_proto() if page_size else None
+            ),
         )
 
-        try:
-            response = await cast(
-                Awaitable[electricity_trading_pb2.ListGridpoolTradesResponse],
-                grpc_call_with_timeout(
-                    self.stub.ListGridpoolTrades,
-                    electricity_trading_pb2.ListGridpoolTradesRequest(
-                        gridpool_id=gridpool_id,
-                        filter=gridpool_trade_filter.to_pb(),
-                        pagination_params=pagination_params.to_proto(),
+        while True:
+            try:
+                response = await cast(
+                    Awaitable[electricity_trading_pb2.ListGridpoolTradesResponse],
+                    grpc_call_with_timeout(
+                        self.stub.ListGridpoolTrades,
+                        request,
+                        metadata=self._metadata,
+                        timeout=timeout,
                     ),
-                    metadata=self._metadata,
-                    timeout=timeout,
-                ),
-            )
+                )
 
-            return [Trade.from_pb(trade) for trade in response.trades]
-        except grpc.RpcError as e:
-            _logger.exception("Error occurred while listing gridpool trades: %s", e)
-            raise
+                for trade in response.trades:
+                    yield Trade.from_pb(trade)
+
+                if response.pagination_info.next_page_token:
+                    request.pagination_params.CopyFrom(
+                        PaginationParams(
+                            page_token=response.pagination_info.next_page_token
+                        )
+                    )
+                else:
+                    break
+
+            except grpc.RpcError as e:
+                _logger.exception("Error occurred while listing gridpool trades: %s", e)
+                raise
 
     async def list_public_trades(
         # pylint: disable=too-many-arguments, too-many-positional-arguments
@@ -925,24 +933,22 @@ class Client(BaseApiClient[ElectricityTradingServiceStub]):
         delivery_period: DeliveryPeriod | None = None,
         buy_delivery_area: DeliveryArea | None = None,
         sell_delivery_area: DeliveryArea | None = None,
-        max_nr_trades: int | None = None,
-        page_token: str | None = None,
+        page_size: int | None = None,
         timeout: timedelta | None = None,
-    ) -> list[PublicTrade]:
+    ) -> AsyncIterator[PublicTrade]:
         """
-        List all executed public orders with optional filters.
+        List all executed public orders with optional filters and pagination.
 
         Args:
             states: List of order states to filter by.
             delivery_period: The delivery period to filter by.
             buy_delivery_area: The buy delivery area to filter by.
             sell_delivery_area: The sell delivery area to filter by.
-            max_nr_trades: The maximum number of trades to return.
-            page_token: The page token to use for pagination.
+            page_size: The number of public trades to return per page.
             timeout: Timeout duration, defaults to None.
 
-        Returns:
-            The list of public trades.
+        Yields:
+            The list of public trades for each page.
 
         Raises:
             grpc.RpcError: If an error occurs while listing public trades.
@@ -954,29 +960,37 @@ class Client(BaseApiClient[ElectricityTradingServiceStub]):
             sell_delivery_area=sell_delivery_area,
         )
 
-        pagination_params = Params(
-            page_size=max_nr_trades,
-            page_token=page_token,
+        request = electricity_trading_pb2.ListPublicTradesRequest(
+            filter=public_trade_filter.to_pb(),
+            pagination_params=(
+                Params(page_size=page_size).to_proto() if page_size else None
+            ),
         )
 
-        try:
-            response = await cast(
-                Awaitable[electricity_trading_pb2.ListPublicTradesResponse],
-                grpc_call_with_timeout(
-                    self.stub.ListPublicTrades,
-                    electricity_trading_pb2.ListPublicTradesRequest(
-                        filter=public_trade_filter.to_pb(),
-                        pagination_params=pagination_params.to_proto(),
+        while True:
+            try:
+                response = await cast(
+                    Awaitable[electricity_trading_pb2.ListPublicTradesResponse],
+                    grpc_call_with_timeout(
+                        self.stub.ListPublicTrades,
+                        request,
+                        metadata=self._metadata,
+                        timeout=timeout,
                     ),
-                    metadata=self._metadata,
-                    timeout=timeout,
-                ),
-            )
+                )
 
-            return [
-                PublicTrade.from_pb(public_trade)
-                for public_trade in response.public_trades
-            ]
-        except grpc.RpcError as e:
-            _logger.exception("Error occurred while listing public trades: %s", e)
-            raise
+                for public_trade in response.public_trades:
+                    yield PublicTrade.from_pb(public_trade)
+
+                if response.pagination_info.next_page_token:
+                    request.pagination_params.CopyFrom(
+                        PaginationParams(
+                            page_token=response.pagination_info.next_page_token
+                        )
+                    )
+                else:
+                    break
+
+            except grpc.RpcError as e:
+                _logger.exception("Error occurred while listing public trades: %s", e)
+                raise

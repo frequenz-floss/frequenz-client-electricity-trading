@@ -297,7 +297,8 @@ def test_cancel_gridpool_order(
     assert args[0].order_id == order_id
 
 
-def test_list_gridpool_orders(
+@pytest.mark.asyncio
+async def test_list_gridpool_orders(
     set_up: SetupParams,
 ) -> None:
     """Test the method listing gridpool orders."""
@@ -313,11 +314,12 @@ def test_list_gridpool_orders(
     side = MarketSide.BUY
     order_states = [OrderState.ACTIVE]
 
-    set_up.loop.run_until_complete(
-        set_up.client.list_gridpool_orders(
+    orders = [
+        order
+        async for order in set_up.client.list_gridpool_orders(
             gridpool_id=set_up.gridpool_id, side=side, order_states=order_states
         )
-    )
+    ]
 
     set_up.mock_stub.ListGridpoolOrders.assert_called_once()
     args, _ = set_up.mock_stub.ListGridpoolOrders.call_args
@@ -325,6 +327,7 @@ def test_list_gridpool_orders(
         order_state.to_pb() for order_state in order_states
     ]
     assert args[0].filter.side == side.to_pb()
+    assert len(orders) == len(mock_response.order_details)
 
 
 @pytest.mark.parametrize(
