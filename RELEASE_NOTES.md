@@ -10,13 +10,7 @@
 
 ## New Features
 
-* Extra validation check to ensure the quantity is strictly positive.
-* Extra validation check to ensure the quantity and price are within the allowed bounds.
-* Add more edge cases to the integration tests.
-* Add idiomatic string representations for `Power` and `Price` classes.
-* Add support for timeouts in the gRPC function calls
-* Export Client constants for external use
-* Fetch subsequent paginated data for `list_*` methods
+<!-- Here goes the main new features and examples or instructions on how to use them -->
 
 ## Bug Fixes
 
