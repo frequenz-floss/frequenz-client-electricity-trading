@@ -10,6 +10,8 @@
 
 ## New Features
 
+* Add trading-cli tool to interact with the trading API. This initial version only provides a tool to list day-ahead prices from the entsoe API.
+
 <!-- Here goes the main new features and examples or instructions on how to use them -->
 
 ## Bug Fixes
