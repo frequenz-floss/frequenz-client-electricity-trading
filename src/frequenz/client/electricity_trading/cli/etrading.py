@@ -4,12 +4,20 @@
 """CLI tool to interact with the trading API."""
 
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal
 from enum import Enum
 
 from frequenz.client.electricity_trading import (
     Client,
+    Currency,
+    DeliveryArea,
     DeliveryPeriod,
+    EnergyMarketCodeType,
+    MarketSide,
     OrderDetail,
+    OrderType,
+    Power,
+    Price,
     PublicTrade,
 )
 
@@ -105,6 +113,63 @@ async def list_orders(
     stream = await client.stream_gridpool_orders(gid, delivery_period=delivery_period)
     async for order in stream:
         print_order(order)
+
+
+# pylint: disable=too-many-arguments
+async def create_order(
+    url: str,
+    key: str,
+    *,
+    gid: int,
+    delivery_start: datetime,
+    delivery_area: str,
+    price: str,
+    quantity_mw: str,
+    currency: str,
+    duration: timedelta,
+) -> None:
+    """Create a limit order for a given price and quantity (in MW).
+
+    The market side is determined by the sign of the quantity, positive for buy orders
+    and negative for sell orders. The delivery area code is expected to be in
+    EUROPE_EIC format.
+
+    Args:
+        url: URL of the trading API.
+        key: API key.
+        gid: Gridpool ID.
+        delivery_start: Start of the delivery period.
+        delivery_area: Delivery area code.
+        price: Price of the order.
+        quantity_mw: Quantity in MW, positive for buy orders and negative for sell orders.
+        currency: Currency of the price.
+        duration: Duration of the delivery period.
+    """
+    client = Client(server_url=url, auth_key=key)
+
+    side = MarketSide.SELL if quantity_mw[0] == "-" else MarketSide.BUY
+    quantity = Power(mw=Decimal(quantity_mw.lstrip("-")))
+    check_delivery_start(delivery_start)
+    order = await client.create_gridpool_order(
+        gridpool_id=gid,
+        delivery_area=DeliveryArea(
+            code=delivery_area,
+            code_type=EnergyMarketCodeType.EUROPE_EIC,
+        ),
+        delivery_period=DeliveryPeriod(
+            start=delivery_start,
+            duration=duration,
+        ),
+        order_type=OrderType.LIMIT,
+        side=side,
+        price=Price(
+            amount=Decimal(price),
+            currency=Currency[currency],
+        ),
+        quantity=quantity,
+    )
+
+    print_order(order)
 
 
 def print_trade_header() -> None:
