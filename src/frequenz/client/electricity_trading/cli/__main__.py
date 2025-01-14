@@ -3,40 +3,74 @@
 
 """CLI tool to interact with the trading API."""
 
-import argparse
+import asyncio
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
+import click
+
 from frequenz.client.electricity_trading.cli.day_ahead import list_day_ahead_prices
+from frequenz.client.electricity_trading.cli.etrading import (
+    list_orders as run_list_orders,
+)
+from frequenz.client.electricity_trading.cli.etrading import (
+    list_trades as run_list_trades,
+)
+
+TZ = ZoneInfo("Europe/Berlin")
+
+iso = datetime.fromisoformat
+
+
+def midnight(days: int = 0) -> str:
+    """Return today's midnight."""
+    return (
+        datetime.combine(datetime.now(TZ), datetime.min.time(), tzinfo=TZ)
+        + timedelta(days)
+    ).isoformat()
+
+
+@click.group()
+def cli() -> None:
+    """CLI tool to interact with the trading API."""
+
+
+@cli.command()
+@click.option("--url", required=True, type=str)
+@click.option("--key", required=True, type=str)
+@click.option("--start", default=None, type=iso)
+def list_trades(url: str, key: str, *, start: datetime) -> None:
+    """List trades."""
+    asyncio.run(run_list_trades(url=url, key=key, delivery_start=start))
+
+
+@cli.command()
+@click.option("--url", required=True, type=str)
+@click.option("--key", required=True, type=str)
+@click.option("--start", default=None, type=iso)
+@click.option("--gid", required=True, type=int)
+def list_orders(url: str, key: str, *, start: datetime, gid: int) -> None:
+    """List orders."""
+    asyncio.run(run_list_orders(url=url, key=key, delivery_start=start, gid=gid))
+
+
+@cli.command()
+@click.option("--entsoe-key", required=True, type=str)
+@click.option("--start", default=midnight(), type=iso)
+@click.option("--end", default=midnight(days=2), type=iso)
+@click.option("--country-code", type=str, default="DE_LU")
+def list_day_ahead(
+    entsoe_key: str, *, start: datetime, end: datetime, country_code: str
+) -> None:
+    """List day-ahead prices."""
+    list_day_ahead_prices(
+        entsoe_key=entsoe_key, start=start, end=end, country_code=country_code
+    )
 
 
 def main() -> None:
-    """Run main entry point for the CLI tool."""
-    tz = ZoneInfo("Europe/Berlin")
-    midnight = datetime.combine(datetime.now(tz), datetime.min.time(), tzinfo=tz)
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--entsoe_key", type=str, required=True)
-    parser.add_argument(
-        "--start",
-        type=datetime.fromisoformat,
-        required=False,
-        default=midnight,
-    )
-    parser.add_argument(
-        "--end",
-        type=datetime.fromisoformat,
-        required=False,
-        default=midnight + timedelta(days=2),
-    )
-    parser.add_argument("--country_code", type=str, required=False, default="DE_LU")
-    args = parser.parse_args()
-
-    list_day_ahead_prices(
-        entsoe_key=args.entsoe_key,
-        start=args.start,
-        end=args.end,
-        country_code=args.country_code,
-    )
+    """Run the main Click CLI."""
+    cli()
 
 
 if __name__ == "__main__":

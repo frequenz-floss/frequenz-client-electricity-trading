@@ -27,6 +27,7 @@ classifiers = [
 requires-python = ">= 3.11, < 4"
 # TODO(cookiecutter): Remove and add more dependencies if appropriate
 dependencies = [
+  "click >= 8.1.8, < 9",
   "entsoe-py >= 0.6.16, < 1",
   "frequenz-api-common >= 0.6.3, < 0.7.0",
   "grpcio >= 1.66.2, < 2",
