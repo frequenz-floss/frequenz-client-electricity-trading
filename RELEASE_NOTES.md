@@ -10,7 +10,11 @@
 
 ## New Features
 
-* Add trading-cli tool to interact with the trading API. This initial version only provides a tool to list day-ahead prices from the entsoe API.
+* Add trading-cli tool to interact with the trading API. Supports the following commands:
+  * `list-day-ahead`: Listing day-ahead prices from the entsoe API.
+  * `list-trades`: Listing and streaming public trades for specified delivery periods. If no delivery start is given, starts streaming all new public trades.
+  * `list-orders`: Listing and streaming orders for specified delivery periods and gridpool IDs. If no delivery start is given, starts streaming all new orders for this gridpool ID.
+
 
 <!-- Here goes the main new features and examples or instructions on how to use them -->
 
