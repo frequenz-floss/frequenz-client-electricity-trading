@@ -3,9 +3,11 @@
 
 """CLI tool to interact with the trading API."""
 
+from collections import deque
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from enum import Enum
+from typing import AsyncIterator
 
 from frequenz.client.electricity_trading import (
     Client,
@@ -84,6 +86,9 @@ async def list_orders(
     for the 15 minute delivery period starting at delivery_start.
     If no delivery_start is provided, stream new orders for any delivery period.
 
+    Note that retrieved sort order for listed orders (starting from the newest)
+    is reversed in chunks trying to bring more recent orders to the bottom.
+
     Args:
         url: URL of the trading API.
         key: API key.
@@ -104,7 +109,7 @@ async def list_orders(
         )
     lst = client.list_gridpool_orders(gid, delivery_period=delivery_period)
 
-    async for order in lst:
+    async for order in reverse_iterator(lst):
         print_order(order)
 
     if delivery_start and delivery_start <= datetime.now(timezone.utc):
@@ -287,3 +292,27 @@ def print_order(order: OrderDetail) -> None:
         order.state_detail.state,
     ]
     print(",".join(v.name if isinstance(v, Enum) else str(v) for v in values))
+
+
+async def reverse_iterator(
+    iterator: AsyncIterator[OrderDetail], chunk_size: int = 100_000
+) -> AsyncIterator[OrderDetail]:
+    """Reverse an async iterator in chunks to avoid loading all elements into memory.
+
+    Args:
+        iterator: Async iterator to reverse.
+        chunk_size: Size of the buffer to store elements.
+
+    Yields:
+        Elements of the iterator in reverse order.
+    """
+    buffer: deque[OrderDetail] = deque(maxlen=chunk_size)
+    async for item in iterator:
+        buffer.append(item)
+        if len(buffer) == chunk_size:
+            for item in reversed(buffer):
+                yield item
+            buffer.clear()
+    if buffer:
+        for item in reversed(buffer):
+            yield item
