@@ -172,6 +172,26 @@ async def create_order(
     print_order(order)
 
 
+async def cancel_order(
+    url: str, key: str, *, gridpool_id: int, order_id: int | None
+) -> None:
+    """Cancel an order by order ID.
+
+    If order_id is None, cancel all orders in the gridpool.
+
+    Args:
+        url: URL of the trading API.
+        key: API key.
+        gridpool_id: Gridpool ID.
+        order_id: Order ID to cancel or None to cancel all orders.
+    """
+    client = Client(server_url=url, auth_key=key)
+    if order_id is None:
+        await client.cancel_all_gridpool_orders(gridpool_id)
+    else:
+        await client.cancel_gridpool_order(gridpool_id, order_id)
+
+
 def print_trade_header() -> None:
     """Print trade header in CSV format."""
     header = (

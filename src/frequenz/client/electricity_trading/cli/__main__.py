@@ -11,6 +11,9 @@ import click
 
 from frequenz.client.electricity_trading.cli.day_ahead import list_day_ahead_prices
 from frequenz.client.electricity_trading.cli.etrading import (
+    cancel_order as run_cancel_order,
+)
+from frequenz.client.electricity_trading.cli.etrading import (
     create_order as run_create_order,
 )
 from frequenz.client.electricity_trading.cli.etrading import (
@@ -100,6 +103,25 @@ def create_order(
             duration=timedelta(seconds=duration),
         )
     )
+
+
+@cli.command()
+@click.option("--url", required=True, type=str)
+@click.option("--key", required=True, type=str)
+@click.option("--gid", required=True, type=int)
+@click.option("--order", required=True, type=int)
+def cancel_order(url: str, key: str, gid: int, order: int) -> None:
+    """Cancel an order."""
+    asyncio.run(run_cancel_order(url=url, key=key, gridpool_id=gid, order_id=order))
+
+
+@cli.command()
+@click.option("--url", required=True, type=str)
+@click.option("--key", required=True, type=str)
+@click.option("--gid", required=True, type=int)
+def cancel_all_orders(url: str, key: str, gid: int) -> None:
+    """Cancel all orders for a gridpool ID."""
+    asyncio.run(run_cancel_order(url=url, key=key, gridpool_id=gid, order_id=None))
 
 
 @cli.command()
