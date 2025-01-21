@@ -3,13 +3,23 @@
 
 """CLI tool to interact with the trading API."""
 
+from collections import deque
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal
 from enum import Enum
+from typing import AsyncIterator
 
 from frequenz.client.electricity_trading import (
     Client,
+    Currency,
+    DeliveryArea,
     DeliveryPeriod,
+    EnergyMarketCodeType,
+    MarketSide,
     OrderDetail,
+    OrderType,
+    Power,
+    Price,
     PublicTrade,
 )
 
@@ -76,6 +86,9 @@ async def list_orders(
     for the 15 minute delivery period starting at delivery_start.
     If no delivery_start is provided, stream new orders for any delivery period.
 
+    Note that retrieved sort order for listed orders (starting from the newest)
+    is reversed in chunks trying to bring more recent orders to the bottom.
+
     Args:
         url: URL of the trading API.
         key: API key.
@@ -96,7 +109,7 @@ async def list_orders(
         )
     lst = client.list_gridpool_orders(gid, delivery_period=delivery_period)
 
-    async for order in lst:
+    async for order in reverse_iterator(lst):
         print_order(order)
 
     if delivery_start and delivery_start <= datetime.now(timezone.utc):
@@ -105,6 +118,83 @@ async def list_orders(
     stream = await client.stream_gridpool_orders(gid, delivery_period=delivery_period)
     async for order in stream:
         print_order(order)
+
+
+# pylint: disable=too-many-arguments
+async def create_order(
+    url: str,
+    key: str,
+    *,
+    gid: int,
+    delivery_start: datetime,
+    delivery_area: str,
+    price: str,
+    quantity_mw: str,
+    currency: str,
+    duration: timedelta,
+) -> None:
+    """Create a limit order for a given price and quantity (in MW).
+
+    The market side is determined by the sign of the quantity, positive for buy orders
+    and negative for sell orders. The delivery area code is expected to be in
+    EUROPE_EIC format.
+
+    Args:
+        url: URL of the trading API.
+        key: API key.
+        gid: Gridpool ID.
+        delivery_start: Start of the delivery period.
+        delivery_area: Delivery area code.
+        price: Price of the order.
+        quantity_mw: Quantity in MW, positive for buy orders and negative for sell orders.
+        currency: Currency of the price.
+        duration: Duration of the delivery period.
+    """
+    client = Client(server_url=url, auth_key=key)
+
+    side = MarketSide.SELL if quantity_mw[0] == "-" else MarketSide.BUY
+    quantity = Power(mw=Decimal(quantity_mw.lstrip("-")))
+    check_delivery_start(delivery_start)
+    order = await client.create_gridpool_order(
+        gridpool_id=gid,
+        delivery_area=DeliveryArea(
+            code=delivery_area,
+            code_type=EnergyMarketCodeType.EUROPE_EIC,
+        ),
+        delivery_period=DeliveryPeriod(
+            start=delivery_start,
+            duration=duration,
+        ),
+        order_type=OrderType.LIMIT,
+        side=side,
+        price=Price(
+            amount=Decimal(price),
+            currency=Currency[currency],
+        ),
+        quantity=quantity,
+    )
+
+    print_order(order)
+
+
+async def cancel_order(
+    url: str, key: str, *, gridpool_id: int, order_id: int | None
+) -> None:
+    """Cancel an order by order ID.
+
+    If order_id is None, cancel all orders in the gridpool.
+
+    Args:
+        url: URL of the trading API.
+        key: API key.
+        gridpool_id: Gridpool ID.
+        order_id: Order ID to cancel or None to cancel all orders.
+    """
+    client = Client(server_url=url, auth_key=key)
+    if order_id is None:
+        await client.cancel_all_gridpool_orders(gridpool_id)
+    else:
+        await client.cancel_gridpool_order(gridpool_id, order_id)
 
 
 def print_trade_header() -> None:
@@ -202,3 +292,27 @@ def print_order(order: OrderDetail) -> None:
         order.state_detail.state,
     ]
     print(",".join(v.name if isinstance(v, Enum) else str(v) for v in values))
+
+
+async def reverse_iterator(
+    iterator: AsyncIterator[OrderDetail], chunk_size: int = 100_000
+) -> AsyncIterator[OrderDetail]:
+    """Reverse an async iterator in chunks to avoid loading all elements into memory.
+
+    Args:
+        iterator: Async iterator to reverse.
+        chunk_size: Size of the buffer to store elements.
+
+    Yields:
+        Elements of the iterator in reverse order.
+    """
+    buffer: deque[OrderDetail] = deque(maxlen=chunk_size)
+    async for item in iterator:
+        buffer.append(item)
+        if len(buffer) == chunk_size:
+            for item in reversed(buffer):
+                yield item
+            buffer.clear()
+    if buffer:
+        for item in reversed(buffer):
+            yield item
