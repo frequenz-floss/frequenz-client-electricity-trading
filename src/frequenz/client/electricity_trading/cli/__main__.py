@@ -45,8 +45,8 @@ def cli() -> None:
 @click.option("--url", required=True, type=str)
 @click.option("--key", required=True, type=str)
 @click.option("--start", default=None, type=iso)
-def list_trades(url: str, key: str, *, start: datetime) -> None:
-    """List trades."""
+def receive_trades(url: str, key: str, *, start: datetime) -> None:
+    """List and/or stream trades."""
     asyncio.run(run_list_trades(url=url, key=key, delivery_start=start))
 
 
@@ -55,8 +55,8 @@ def list_trades(url: str, key: str, *, start: datetime) -> None:
 @click.option("--key", required=True, type=str)
 @click.option("--start", default=None, type=iso)
 @click.option("--gid", required=True, type=int)
-def list_orders(url: str, key: str, *, start: datetime, gid: int) -> None:
-    """List orders."""
+def receive_orders(url: str, key: str, *, start: datetime, gid: int) -> None:
+    """List and/or stream orders."""
     asyncio.run(run_list_orders(url=url, key=key, delivery_start=start, gid=gid))
 
 
