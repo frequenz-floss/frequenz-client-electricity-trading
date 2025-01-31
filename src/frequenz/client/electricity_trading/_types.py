@@ -12,7 +12,8 @@ import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
-from typing import Self
+from functools import wraps
+from typing import Any, Callable, Self, Type, TypeVar
 
 # pylint: disable=no-member
 from frequenz.api.common.v1.grid import delivery_area_pb2, delivery_duration_pb2
@@ -22,6 +23,32 @@ from frequenz.api.electricity_trading.v1 import electricity_trading_pb2
 from google.protobuf import json_format, struct_pb2, timestamp_pb2
 
 _logger = logging.getLogger(__name__)
+
+
+T = TypeVar("T")  # Generic type variable for class methods
+
+
+def from_pb(func: Callable[[Type[T], Any], T]) -> Callable[[Type[T], Any], T]:
+    """Standardize from_pb methods like error handling with this decorator.
+
+    Args:
+        func: A class method that converts a protobuf message into an object.
+
+    Returns:
+        The wrapped function with standardized error handling.
+    """
+
+    @wraps(func)
+    def wrapper(cls: Type[T], pb_obj: Any) -> T:
+        try:
+            return func(cls, pb_obj)
+        except Exception as e:
+            _logger.error(
+                "Error converting %s from protobuf (`%s`): %s", cls.__name__, pb_obj, e
+            )
+            raise
+
+    return wrapper
 
 
 # From frequanz.api.common
@@ -91,6 +118,7 @@ class Price:
     """Currency of the price."""
 
     @classmethod
+    @from_pb
     def from_pb(cls, price: price_pb2.Price) -> Self:
         """Convert a protobuf Price to Price object.
 
@@ -99,18 +127,11 @@ class Price:
 
         Returns:
             Price object corresponding to the protobuf message.
-
-        Raises:
-            Exception: If an error occurs during conversion.
         """
-        try:
-            return cls(
-                amount=Decimal(price.amount.value),
-                currency=Currency.from_pb(price.currency),
-            )
-        except Exception as e:
-            _logger.error("Error converting price `%s`: %s", price, e)
-            raise
+        return cls(
+            amount=Decimal(price.amount.value),
+            currency=Currency.from_pb(price.currency),
+        )
 
     def to_pb(self) -> price_pb2.Price:
         """Convert a Price object to protobuf Price.
@@ -138,6 +159,7 @@ class Power:
     mw: Decimal
 
     @classmethod
+    @from_pb
     def from_pb(cls, power: power_pb2.Power) -> Self:
         """Convert a protobuf Power to Power object.
 
@@ -146,15 +168,8 @@ class Power:
 
         Returns:
             Power object corresponding to the protobuf message.
-
-        Raises:
-            Exception: If an error occurs during conversion.
         """
-        try:
-            return cls(mw=Decimal(power.mw.value))
-        except Exception as e:
-            _logger.error("Error converting power `%s`: %s", power, e)
-            raise
+        return cls(mw=Decimal(power.mw.value))
 
     def to_pb(self) -> power_pb2.Power:
         """Convert a Power object to protobuf Power.
@@ -965,6 +980,7 @@ class Order:  # pylint: disable=too-many-instance-attributes
                 self.valid_until = self.valid_until.astimezone(timezone.utc)
 
     @classmethod
+    @from_pb
     def from_pb(cls, order: electricity_trading_pb2.Order) -> Self:
         """Convert a protobuf Order to Order object.
 
@@ -973,51 +989,42 @@ class Order:  # pylint: disable=too-many-instance-attributes
 
         Returns:
             Order object corresponding to the protobuf message.
-
-        Raises:
-            Exception: If an error occurs during conversion.
         """
-        try:
-            return cls(
-                delivery_area=DeliveryArea.from_pb(order.delivery_area),
-                delivery_period=DeliveryPeriod.from_pb(order.delivery_period),
-                type=OrderType.from_pb(order.type),
-                side=MarketSide.from_pb(order.side),
-                price=Price.from_pb(order.price),
-                quantity=Power.from_pb(order.quantity),
-                stop_price=(
-                    Price.from_pb(order.stop_price)
-                    if order.HasField("stop_price")
-                    else None
-                ),
-                peak_price_delta=(
-                    Price.from_pb(order.peak_price_delta)
-                    if order.HasField("peak_price_delta")
-                    else None
-                ),
-                display_quantity=(
-                    Power.from_pb(order.display_quantity)
-                    if order.HasField("display_quantity")
-                    else None
-                ),
-                execution_option=(
-                    OrderExecutionOption.from_pb(order.execution_option)
-                    if order.HasField("execution_option")
-                    else None
-                ),
-                valid_until=(
-                    order.valid_until.ToDatetime(tzinfo=timezone.utc)
-                    if order.HasField("valid_until")
-                    else None
-                ),
-                payload=(
-                    json_format.MessageToDict(order.payload) if order.payload else None
-                ),
-                tag=order.tag if order.tag else None,
-            )
-        except Exception as e:
-            _logger.error("Error converting order `%s`: %s", order, e)
-            raise
+        return cls(
+            delivery_area=DeliveryArea.from_pb(order.delivery_area),
+            delivery_period=DeliveryPeriod.from_pb(order.delivery_period),
+            type=OrderType.from_pb(order.type),
+            side=MarketSide.from_pb(order.side),
+            price=Price.from_pb(order.price),
+            quantity=Power.from_pb(order.quantity),
+            stop_price=(
+                Price.from_pb(order.stop_price)
+                if order.HasField("stop_price")
+                else None
+            ),
+            peak_price_delta=(
+                Price.from_pb(order.peak_price_delta)
+                if order.HasField("peak_price_delta")
+                else None
+            ),
+            display_quantity=(
+                Power.from_pb(order.display_quantity)
+                if order.HasField("display_quantity")
+                else None
+            ),
+            execution_option=(
+                OrderExecutionOption.from_pb(order.execution_option)
+                if order.HasField("execution_option")
+                else None
+            ),
+            valid_until=(
+                order.valid_until.ToDatetime(tzinfo=timezone.utc)
+                if order.HasField("valid_until")
+                else None
+            ),
+            payload=json_format.MessageToDict(order.payload) if order.payload else None,
+            tag=order.tag if order.tag else None,
+        )
 
     def to_pb(self) -> electricity_trading_pb2.Order:
         """
