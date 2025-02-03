@@ -16,4 +16,6 @@
 
 ## Bug Fixes
 
+* Deal correctly with cancelled orders with no price or quantity
+
 <!-- Here goes notable bug fixes that are worth a special mention or explanation -->
