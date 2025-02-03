@@ -54,7 +54,7 @@ async def list_trades(url: str, key: str, *, delivery_start: datetime) -> None:
     """
     client = Client(server_url=url, auth_key=key)
 
-    print_trade_header()
+    print_public_trade_header()
 
     delivery_period = None
     # If delivery period is selected, list historical trades also
@@ -67,14 +67,14 @@ async def list_trades(url: str, key: str, *, delivery_start: datetime) -> None:
         lst = client.list_public_trades(delivery_period=delivery_period)
 
         async for trade in lst:
-            print_trade(trade)
+            print_public_trade(trade)
 
         if delivery_start <= datetime.now(timezone.utc):
             return
 
     stream = await client.stream_public_trades(delivery_period=delivery_period)
     async for trade in stream:
-        print_trade(trade)
+        print_public_trade(trade)
 
 
 async def list_orders(
@@ -197,7 +197,7 @@ async def cancel_order(
         await client.cancel_gridpool_order(gridpool_id, order_id)
 
 
-def print_trade_header() -> None:
+def print_public_trade_header() -> None:
     """Print trade header in CSV format."""
     header = (
         "public_trade_id,"
@@ -216,7 +216,7 @@ def print_trade_header() -> None:
     print(header)
 
 
-def print_trade(trade: PublicTrade) -> None:
+def print_public_trade(trade: PublicTrade) -> None:
     """Print trade details to stdout in CSV format."""
     values = (
         trade.public_trade_id,
