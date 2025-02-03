@@ -1010,8 +1010,16 @@ class Order:  # pylint: disable=too-many-instance-attributes
             delivery_period=DeliveryPeriod.from_pb(order.delivery_period),
             type=OrderType.from_pb(order.type),
             side=MarketSide.from_pb(order.side),
-            price=Price.from_pb(order.price),
-            quantity=Power.from_pb(order.quantity),
+            price=(
+                Price.from_pb(order.price)
+                if order.HasField("price")
+                else Price(Decimal("NaN"), Currency.UNSPECIFIED)
+            ),
+            quantity=(
+                Power.from_pb(order.quantity)
+                if order.HasField("quantity")
+                else Power(Decimal("NaN"))
+            ),
             stop_price=(
                 Price.from_pb(order.stop_price)
                 if order.HasField("stop_price")
