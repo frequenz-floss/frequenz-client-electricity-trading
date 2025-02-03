@@ -10,6 +10,8 @@
 
 ## New Features
 
+* Use decorator for `from_pb` methods to ensure an error message with protobuf data is logged in case there are conversion problems.
+
 <!-- Here goes the main new features and examples or instructions on how to use them -->
 
 ## Bug Fixes
