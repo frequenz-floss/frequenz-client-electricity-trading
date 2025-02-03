@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from functools import wraps
-from typing import Any, Callable, Self, Type, TypeVar
+from typing import Callable, Concatenate, ParamSpec, Self, TypeVar
 
 # pylint: disable=no-member
 from frequenz.api.common.v1.grid import delivery_area_pb2, delivery_duration_pb2
@@ -26,9 +26,12 @@ _logger = logging.getLogger(__name__)
 
 
 T = TypeVar("T")  # Generic type variable for class methods
+P = ParamSpec("P")
 
 
-def from_pb(func: Callable[[Type[T], Any], T]) -> Callable[[Type[T], Any], T]:
+def from_pb(
+    func: Callable[Concatenate[type[T], P], T]
+) -> Callable[Concatenate[type[T], P], T]:
     """Standardize from_pb methods like error handling with this decorator.
 
     Args:
@@ -39,12 +42,12 @@ def from_pb(func: Callable[[Type[T], Any], T]) -> Callable[[Type[T], Any], T]:
     """
 
     @wraps(func)
-    def wrapper(cls: Type[T], pb_obj: Any) -> T:
+    def wrapper(cls: type[T], /, *args: P.args, **kwargs: P.kwargs) -> T:
         try:
-            return func(cls, pb_obj)
+            return func(cls, *args, **kwargs)
         except Exception as e:
             _logger.error(
-                "Error converting %s from protobuf (`%s`): %s", cls.__name__, pb_obj, e
+                "Error converting %s from protobuf (`%s`): %s", cls.__name__, *args, e
             )
             raise
 
