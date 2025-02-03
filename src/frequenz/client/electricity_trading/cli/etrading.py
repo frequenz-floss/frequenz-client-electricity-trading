@@ -97,7 +97,7 @@ async def list_orders(
     """
     client = Client(server_url=url, auth_key=key)
 
-    # print_header()
+    print_order_header()
 
     delivery_period = None
     # If delivery period is selected, list historical orders also
