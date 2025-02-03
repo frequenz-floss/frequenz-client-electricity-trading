@@ -12,7 +12,8 @@ import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
-from typing import Self
+from functools import wraps
+from typing import Callable, Concatenate, ParamSpec, Self, TypeVar
 
 # pylint: disable=no-member
 from frequenz.api.common.v1.grid import delivery_area_pb2, delivery_duration_pb2
@@ -22,6 +23,35 @@ from frequenz.api.electricity_trading.v1 import electricity_trading_pb2
 from google.protobuf import json_format, struct_pb2, timestamp_pb2
 
 _logger = logging.getLogger(__name__)
+
+
+T = TypeVar("T")  # Generic type variable for class methods
+P = ParamSpec("P")
+
+
+def from_pb(
+    func: Callable[Concatenate[type[T], P], T]
+) -> Callable[Concatenate[type[T], P], T]:
+    """Standardize from_pb methods like error handling with this decorator.
+
+    Args:
+        func: A class method that converts a protobuf message into an object.
+
+    Returns:
+        The wrapped function with standardized error handling.
+    """
+
+    @wraps(func)
+    def wrapper(cls: type[T], /, *args: P.args, **kwargs: P.kwargs) -> T:
+        try:
+            return func(cls, *args, **kwargs)
+        except Exception as e:
+            _logger.error(
+                "Error converting %s from protobuf (`%s`): %s", cls.__name__, *args, e
+            )
+            raise
+
+    return wrapper
 
 
 # From frequanz.api.common
@@ -56,6 +86,7 @@ class Currency(enum.Enum):
     SGD = price_pb2.Price.Currency.CURRENCY_SGD
 
     @classmethod
+    @from_pb
     def from_pb(cls, currency: price_pb2.Price.Currency.ValueType) -> "Currency":
         """Convert a protobuf Currency value to Currency enum.
 
@@ -91,6 +122,7 @@ class Price:
     """Currency of the price."""
 
     @classmethod
+    @from_pb
     def from_pb(cls, price: price_pb2.Price) -> Self:
         """Convert a protobuf Price to Price object.
 
@@ -131,6 +163,7 @@ class Power:
     mw: Decimal
 
     @classmethod
+    @from_pb
     def from_pb(cls, power: power_pb2.Power) -> Self:
         """Convert a protobuf Power to Power object.
 
@@ -184,6 +217,7 @@ class EnergyMarketCodeType(enum.Enum):
     """North American Electric Reliability Corporation identifiers."""
 
     @classmethod
+    @from_pb
     def from_pb(
         cls, energy_market_code_type: delivery_area_pb2.EnergyMarketCodeType.ValueType
     ) -> "EnergyMarketCodeType":
@@ -229,6 +263,7 @@ class DeliveryArea:
     """Type of code used for identifying the delivery area itself."""
 
     @classmethod
+    @from_pb
     def from_pb(cls, delivery_area: delivery_area_pb2.DeliveryArea) -> Self:
         """Convert a protobuf DeliveryArea to DeliveryArea object.
 
@@ -278,6 +313,7 @@ class DeliveryDuration(enum.Enum):
     """1-hour contract duration."""
 
     @classmethod
+    @from_pb
     def from_pb(
         cls, delivery_duration: delivery_duration_pb2.DeliveryDuration.ValueType
     ) -> "DeliveryDuration":
@@ -408,6 +444,7 @@ class DeliveryPeriod:
         return self.__str__()
 
     @classmethod
+    @from_pb
     def from_pb(cls, delivery_period: delivery_duration_pb2.DeliveryPeriod) -> Self:
         """Convert a protobuf DeliveryPeriod to DeliveryPeriod object.
 
@@ -482,6 +519,7 @@ class OrderExecutionOption(enum.Enum):
     immediately will be cancelled."""
 
     @classmethod
+    @from_pb
     def from_pb(
         cls,
         order_execution_option: electricity_trading_pb2.OrderExecutionOption.ValueType,
@@ -547,6 +585,7 @@ class OrderType(enum.Enum):
     order book and has no market impact. (Not yet supported)."""
 
     @classmethod
+    @from_pb
     def from_pb(
         cls, order_type: electricity_trading_pb2.OrderType.ValueType
     ) -> "OrderType":
@@ -586,6 +625,7 @@ class MarketSide(enum.Enum):
     """Order to sell electricity, referred to as an 'ask' or 'offer' in the order book."""
 
     @classmethod
+    @from_pb
     def from_pb(
         cls, market_side: electricity_trading_pb2.MarketSide.ValueType
     ) -> "MarketSide":
@@ -648,6 +688,7 @@ class OrderState(enum.Enum):
     could be due to certain conditions not yet being met."""
 
     @classmethod
+    @from_pb
     def from_pb(
         cls, order_state: electricity_trading_pb2.OrderState.ValueType
     ) -> "OrderState":
@@ -711,6 +752,7 @@ class TradeState(enum.Enum):
     """An approval has been requested."""
 
     @classmethod
+    @from_pb
     def from_pb(
         cls, trade_state: electricity_trading_pb2.TradeState.ValueType
     ) -> "TradeState":
@@ -811,6 +853,7 @@ class StateReason(enum.Enum):
     """A quote was partially executed."""
 
     @classmethod
+    @from_pb
     def from_pb(
         cls,
         state_reason: electricity_trading_pb2.OrderDetail.StateDetail.StateReason.ValueType,
@@ -864,6 +907,7 @@ class MarketActor(enum.Enum):
     """The system was the actor."""
 
     @classmethod
+    @from_pb
     def from_pb(
         cls,
         market_actor: electricity_trading_pb2.OrderDetail.StateDetail.MarketActor.ValueType,
@@ -951,6 +995,7 @@ class Order:  # pylint: disable=too-many-instance-attributes
                 self.valid_until = self.valid_until.astimezone(timezone.utc)
 
     @classmethod
+    @from_pb
     def from_pb(cls, order: electricity_trading_pb2.Order) -> Self:
         """Convert a protobuf Order to Order object.
 
@@ -1115,6 +1160,7 @@ class Trade:  # pylint: disable=too-many-instance-attributes
             self.execution_time = self.execution_time.astimezone(timezone.utc)
 
     @classmethod
+    @from_pb
     def from_pb(cls, trade: electricity_trading_pb2.Trade) -> Self:
         """Convert a protobuf Trade to Trade object.
 
@@ -1172,6 +1218,7 @@ class StateDetail:
     """Actor responsible for the current state."""
 
     @classmethod
+    @from_pb
     def from_pb(
         cls, state_detail: electricity_trading_pb2.OrderDetail.StateDetail
     ) -> Self:
@@ -1252,6 +1299,7 @@ class OrderDetail:
             self.modification_time = self.modification_time.astimezone(timezone.utc)
 
     @classmethod
+    @from_pb
     def from_pb(cls, order_detail: electricity_trading_pb2.OrderDetail) -> Self:
         """Convert a protobuf OrderDetail to OrderDetail object.
 
@@ -1332,6 +1380,7 @@ class PublicTrade:  # pylint: disable=too-many-instance-attributes
             self.execution_time = self.execution_time.astimezone(timezone.utc)
 
     @classmethod
+    @from_pb
     def from_pb(cls, public_trade: electricity_trading_pb2.PublicTrade) -> Self:
         """Convert a protobuf PublicTrade to PublicTrade object.
 
@@ -1430,6 +1479,7 @@ class GridpoolOrderFilter:
         )
 
     @classmethod
+    @from_pb
     def from_pb(
         cls, gridpool_order_filter: electricity_trading_pb2.GridpoolOrderFilter
     ) -> Self:
@@ -1554,6 +1604,7 @@ class GridpoolTradeFilter:
         )
 
     @classmethod
+    @from_pb
     def from_pb(
         cls, gridpool_trade_filter: electricity_trading_pb2.GridpoolTradeFilter
     ) -> "GridpoolTradeFilter":
@@ -1667,6 +1718,7 @@ class PublicTradeFilter:
         )
 
     @classmethod
+    @from_pb
     def from_pb(
         cls, public_trade_filter: electricity_trading_pb2.PublicTradeFilter
     ) -> Self:
@@ -1779,6 +1831,7 @@ class UpdateOrder:  # pylint: disable=too-many-instance-attributes
                 self.valid_until = self.valid_until.astimezone(timezone.utc)
 
     @classmethod
+    @from_pb
     def from_pb(
         cls,
         update_order: electricity_trading_pb2.UpdateGridpoolOrderRequest.UpdateOrder,
