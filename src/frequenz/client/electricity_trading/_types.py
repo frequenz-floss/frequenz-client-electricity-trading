@@ -1316,8 +1316,11 @@ class OrderDetail:
 
         Returns:
             OrderDetail object corresponding to the protobuf message.
+
+        Raises:
+            ValueError: If the order price and quantity are not specified for a non-canceled order.
         """
-        return cls(
+        od = cls(
             order_id=order_detail.order_id,
             order=Order.from_pb(order_detail.order),
             state_detail=StateDetail.from_pb(order_detail.state_detail),
@@ -1328,6 +1331,19 @@ class OrderDetail:
                 tzinfo=timezone.utc
             ),
         )
+
+        # Only cancelled orders are allowed to have missing price or quantity
+        missing_price_or_quantity = (
+            od.order.price.amount.is_nan()
+            or od.order.price.currency == Currency.UNSPECIFIED
+            or od.order.quantity.mw.is_nan()
+        )
+        if missing_price_or_quantity and od.state_detail.state != OrderState.CANCELED:
+            raise ValueError(
+                f"Price and quantity must be specified for a non-canceled order (`{od}`)."
+            )
+
+        return od
 
     def to_pb(self) -> electricity_trading_pb2.OrderDetail:
         """Convert an OrderDetail object to protobuf OrderDetail.
