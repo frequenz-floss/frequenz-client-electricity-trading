@@ -97,7 +97,7 @@ async def list_orders(
     """
     client = Client(server_url=url, auth_key=key)
 
-    # print_header()
+    print_order_header()
 
     delivery_period = None
     # If delivery period is selected, list historical orders also
@@ -200,18 +200,18 @@ async def cancel_order(
 def print_trade_header() -> None:
     """Print trade header in CSV format."""
     header = (
-        "public_trade_id, "
-        "execution_time, "
-        "delivery_period_start, "
-        "delivery_period_duration, "
-        "buy_delivery_area_code, "
-        "sell_delivery_area_code, "
-        "buy_delivery_area_code_type, "
-        "sell_delivery_area_code_type"
-        "quantity_mw, "
-        "price, "
-        "currency, "
-        "state, "
+        "public_trade_id,"
+        "execution_time,"
+        "delivery_period_start,"
+        "delivery_period_duration,"
+        "buy_delivery_area_code,"
+        "sell_delivery_area_code,"
+        "buy_delivery_area_code_type,"
+        "sell_delivery_area_code_type,"
+        "quantity_mw,"
+        "currency,"
+        "price,"
+        "state "
     )
     print(header)
 
@@ -238,20 +238,20 @@ def print_trade(trade: PublicTrade) -> None:
 def print_order_header() -> None:
     """Print order header in CSV format."""
     header = (
-        "order_id, "
-        "create_time, "
-        "modification_time, "
-        "delivery_period_start, "
-        "delivery_period_duration"
-        "delivery_area_code, "
-        "delivery_area_code_type, "
-        "order_type, "
-        "quantity_mw, "
-        "open_quantity_mw, "
-        "side, "
-        "currency, "
-        "price, "
-        "state, "
+        "order_id,"
+        "create_time,"
+        "modification_time,"
+        "delivery_period_start,"
+        "delivery_period_duration,"
+        "delivery_area_code,"
+        "delivery_area_code_type,"
+        "order_type,"
+        "quantity_mw,"
+        "open_quantity_mw,"
+        "side,"
+        "currency,"
+        "price,"
+        "state"
     )
     print(header)
 

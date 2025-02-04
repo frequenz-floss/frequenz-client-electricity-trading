@@ -1010,8 +1010,16 @@ class Order:  # pylint: disable=too-many-instance-attributes
             delivery_period=DeliveryPeriod.from_pb(order.delivery_period),
             type=OrderType.from_pb(order.type),
             side=MarketSide.from_pb(order.side),
-            price=Price.from_pb(order.price),
-            quantity=Power.from_pb(order.quantity),
+            price=(
+                Price.from_pb(order.price)
+                if order.HasField("price")
+                else Price(Decimal("NaN"), Currency.UNSPECIFIED)
+            ),
+            quantity=(
+                Power.from_pb(order.quantity)
+                if order.HasField("quantity")
+                else Power(Decimal("NaN"))
+            ),
             stop_price=(
                 Price.from_pb(order.stop_price)
                 if order.HasField("stop_price")
@@ -1308,8 +1316,11 @@ class OrderDetail:
 
         Returns:
             OrderDetail object corresponding to the protobuf message.
+
+        Raises:
+            ValueError: If the order price and quantity are not specified for a non-canceled order.
         """
-        return cls(
+        od = cls(
             order_id=order_detail.order_id,
             order=Order.from_pb(order_detail.order),
             state_detail=StateDetail.from_pb(order_detail.state_detail),
@@ -1320,6 +1331,19 @@ class OrderDetail:
                 tzinfo=timezone.utc
             ),
         )
+
+        # Only cancelled orders are allowed to have missing price or quantity
+        missing_price_or_quantity = (
+            od.order.price.amount.is_nan()
+            or od.order.price.currency == Currency.UNSPECIFIED
+            or od.order.quantity.mw.is_nan()
+        )
+        if missing_price_or_quantity and od.state_detail.state != OrderState.CANCELED:
+            raise ValueError(
+                f"Price and quantity must be specified for a non-canceled order (`{od}`)."
+            )
+
+        return od
 
     def to_pb(self) -> electricity_trading_pb2.OrderDetail:
         """Convert an OrderDetail object to protobuf OrderDetail.
