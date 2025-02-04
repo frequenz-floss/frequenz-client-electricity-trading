@@ -498,6 +498,29 @@ def test_order_detail_from_pb() -> None:
     )
 
 
+def test_order_detail_from_pb_missing_fields() -> None:
+    """Test the client order detail type conversion from protobuf with missing fields."""
+    # Missing price
+    od_pb1 = electricity_trading_pb2.OrderDetail()
+    od_pb1.CopyFrom(ORDER_DETAIL_PB)
+    od_pb1.order.ClearField("price")
+    # Not allowed for active orders
+    with pytest.raises(ValueError):
+        OrderDetail.from_pb(od_pb1)
+    # But allowed for canceled orders
+    od_pb1.state_detail.state = electricity_trading_pb2.OrderState.ORDER_STATE_CANCELED
+    OrderDetail.from_pb(od_pb1)
+
+    # Missing quantity (same logic as above)
+    od_pb2 = electricity_trading_pb2.OrderDetail()
+    od_pb2.CopyFrom(ORDER_DETAIL_PB)
+    od_pb2.order.ClearField("quantity")
+    with pytest.raises(ValueError):
+        OrderDetail.from_pb(od_pb2)
+    od_pb2.state_detail.state = electricity_trading_pb2.OrderState.ORDER_STATE_CANCELED
+    OrderDetail.from_pb(od_pb2)
+
+
 def test_order_detail_no_timezone_error() -> None:
     """Test that an order detail with inputs with no timezone raises a ValueError."""
     with pytest.raises(ValueError):
