@@ -10,6 +10,8 @@
 
 ## New Features
 
+* Add helper function to support creating quantities that conform to the API expectations.
+
 <!-- Here goes the main new features and examples or instructions on how to use them -->
 
 ## Bug Fixes
