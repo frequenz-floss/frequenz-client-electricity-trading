@@ -212,6 +212,7 @@ from ._types import (
     TradeState,
     UpdateOrder,
 )
+from ._utils import quantize_quantity
 
 __all__ = [
     "Client",
@@ -243,4 +244,5 @@ __all__ = [
     "MIN_QUANTITY_MW",
     "PRECISION_DECIMAL_QUANTITY",
     "PRECISION_DECIMAL_PRICE",
+    "quantize_quantity",
 ]

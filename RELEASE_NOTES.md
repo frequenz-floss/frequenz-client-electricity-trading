@@ -10,12 +10,10 @@
 
 ## New Features
 
-* Use decorator for `from_pb` methods to ensure an error message with protobuf data is logged in case there are conversion problems.
+* Add helper function to support creating quantities that conform to the API expectations.
 
 <!-- Here goes the main new features and examples or instructions on how to use them -->
 
 ## Bug Fixes
-
-* Deal correctly with cancelled orders with no price or quantity
 
 <!-- Here goes notable bug fixes that are worth a special mention or explanation -->
