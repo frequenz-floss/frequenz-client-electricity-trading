@@ -17,6 +17,9 @@ from frequenz.client.electricity_trading.cli.etrading import (
     create_order as run_create_order,
 )
 from frequenz.client.electricity_trading.cli.etrading import (
+    list_gridpool_trades as run_list_gridpool_trades,
+)
+from frequenz.client.electricity_trading.cli.etrading import (
     list_orders as run_list_orders,
 )
 from frequenz.client.electricity_trading.cli.etrading import (
@@ -48,6 +51,18 @@ def cli() -> None:
 def receive_trades(url: str, key: str, *, start: datetime) -> None:
     """List and/or stream trades."""
     asyncio.run(run_list_trades(url=url, key=key, delivery_start=start))
+
+
+@cli.command()
+@click.option("--url", required=True, type=str)
+@click.option("--key", required=True, type=str)
+@click.option("--gid", required=True, type=int)
+@click.option("--start", default=None, type=iso)
+def receive_gridpool_trades(url: str, key: str, gid: int, *, start: datetime) -> None:
+    """List and/or stream orders."""
+    asyncio.run(
+        run_list_gridpool_trades(url=url, key=key, gid=gid, delivery_start=start)
+    )
 
 
 @cli.command()

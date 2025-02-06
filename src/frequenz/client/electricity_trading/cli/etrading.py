@@ -21,6 +21,7 @@ from frequenz.client.electricity_trading import (
     Power,
     Price,
     PublicTrade,
+    Trade,
 )
 
 
@@ -54,7 +55,7 @@ async def list_trades(url: str, key: str, *, delivery_start: datetime) -> None:
     """
     client = Client(server_url=url, auth_key=key)
 
-    print_trade_header()
+    print_public_trade_header()
 
     delivery_period = None
     # If delivery period is selected, list historical trades also
@@ -67,12 +68,50 @@ async def list_trades(url: str, key: str, *, delivery_start: datetime) -> None:
         lst = client.list_public_trades(delivery_period=delivery_period)
 
         async for trade in lst:
-            print_trade(trade)
+            print_public_trade(trade)
 
         if delivery_start <= datetime.now(timezone.utc):
             return
 
     stream = await client.stream_public_trades(delivery_period=delivery_period)
+    async for trade in stream:
+        print_public_trade(trade)
+
+
+async def list_gridpool_trades(
+    url: str, key: str, gid: int, *, delivery_start: datetime
+) -> None:
+    """List gridpool trades and stream new gridpool trades.
+
+    Optionally a delivery_start can be provided to filter the trades by delivery period.
+
+    Args:
+        url: URL of the trading API.
+        key: API key.
+        gid: Gridpool ID.
+        delivery_start: Start of the delivery period or None.
+    """
+    client = Client(server_url=url, auth_key=key)
+
+    print_trade_header()
+
+    delivery_period = None
+    # If delivery period is selected, list historical trades also
+    if delivery_start is not None:
+        check_delivery_start(delivery_start)
+        delivery_period = DeliveryPeriod(
+            start=delivery_start,
+            duration=timedelta(minutes=15),
+        )
+    lst = client.list_gridpool_trades(gid, delivery_period=delivery_period)
+
+    async for trade in lst:
+        print_trade(trade)
+
+    if delivery_start and delivery_start <= datetime.now(timezone.utc):
+        return
+
+    stream = await client.stream_gridpool_trades(gid, delivery_period=delivery_period)
     async for trade in stream:
         print_trade(trade)
 
@@ -197,7 +236,7 @@ async def cancel_order(
         await client.cancel_gridpool_order(gridpool_id, order_id)
 
 
-def print_trade_header() -> None:
+def print_public_trade_header() -> None:
     """Print trade header in CSV format."""
     header = (
         "public_trade_id,"
@@ -216,7 +255,7 @@ def print_trade_header() -> None:
     print(header)
 
 
-def print_trade(trade: PublicTrade) -> None:
+def print_public_trade(trade: PublicTrade) -> None:
     """Print trade details to stdout in CSV format."""
     values = (
         trade.public_trade_id,
@@ -227,6 +266,44 @@ def print_trade(trade: PublicTrade) -> None:
         trade.sell_delivery_area.code,
         trade.buy_delivery_area.code_type,
         trade.sell_delivery_area.code_type,
+        trade.quantity.mw,
+        trade.price.currency,
+        trade.price.amount,
+        trade.state,
+    )
+    print(",".join(v.name if isinstance(v, Enum) else str(v) for v in values))
+
+
+def print_trade_header() -> None:
+    """Print trade header in CSV format."""
+    header = (
+        "trade_id,"
+        "order_id,"
+        "execution_time,"
+        "delivery_period_start,"
+        "delivery_period_duration,"
+        "delivery_area_code,"
+        "delivery_area_code_type,"
+        "side,"
+        "quantity_mw,"
+        "currency,"
+        "price,"
+        "state "
+    )
+    print(header)
+
+
+def print_trade(trade: Trade) -> None:
+    """Print trade details to stdout in CSV format."""
+    values = (
+        trade.id,
+        trade.order_id,
+        trade.execution_time.isoformat(),
+        trade.delivery_period.start.isoformat(),
+        trade.delivery_period.duration,
+        trade.delivery_area.code,
+        trade.delivery_area.code_type,
+        trade.side,
         trade.quantity.mw,
         trade.price.currency,
         trade.price.amount,
