@@ -328,7 +328,8 @@ def print_order_header() -> None:
         "side,"
         "currency,"
         "price,"
-        "state"
+        "state,"
+        "tag"
     )
     print(header)
 
@@ -344,7 +345,6 @@ def print_order(order: OrderDetail) -> None:
     - order.execution_option
     - order.valid_until
     - order.payload
-    - order.tag
     - state_detail.state_reason
     - state_detail.market_actor
     - open_quantity
@@ -367,6 +367,7 @@ def print_order(order: OrderDetail) -> None:
         order.order.price.currency,
         order.order.price.amount,
         order.state_detail.state,
+        order.order.tag,
     ]
     print(",".join(v.name if isinstance(v, Enum) else str(v) for v in values))
 
