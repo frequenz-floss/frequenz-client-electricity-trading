@@ -324,7 +324,7 @@ def print_order_header() -> None:
         "delivery_area_code_type,"
         "order_type,"
         "quantity_mw,"
-        "open_quantity_mw,"
+        "filled_quantity_mw,"
         "side,"
         "currency,"
         "price,"
@@ -347,7 +347,7 @@ def print_order(order: OrderDetail) -> None:
     - order.tag
     - state_detail.state_reason
     - state_detail.market_actor
-    - filled_quantity
+    - open_quantity
 
     Args:
         order: OrderDetail object
@@ -362,7 +362,7 @@ def print_order(order: OrderDetail) -> None:
         order.order.delivery_area.code_type,
         order.order.type,
         order.order.quantity.mw,
-        order.open_quantity.mw,
+        order.filled_quantity.mw,
         order.order.side,
         order.order.price.currency,
         order.order.price.amount,
