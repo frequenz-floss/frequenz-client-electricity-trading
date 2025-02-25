@@ -41,8 +41,8 @@ def check_delivery_start(
         raise ValueError("Delivery period must be a multiple of `duration`.")
 
 
-async def list_trades(url: str, key: str, *, delivery_start: datetime) -> None:
-    """List trades and stream new trades.
+async def list_public_trades(url: str, key: str, *, delivery_start: datetime) -> None:
+    """List trades and stream new public trades.
 
     If delivery_start is provided, list historical trades and stream new trades
     for the 15 minute delivery period starting at delivery_start.
@@ -116,10 +116,10 @@ async def list_gridpool_trades(
         print_trade(trade)
 
 
-async def list_orders(
+async def list_gridpool_orders(
     url: str, key: str, *, delivery_start: datetime, gid: int
 ) -> None:
-    """List orders and stream new orders.
+    """List orders and stream new gridpool orders.
 
     If delivery_start is provided, list historical orders and stream new orders
     for the 15 minute delivery period starting at delivery_start.

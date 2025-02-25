@@ -17,13 +17,13 @@ from frequenz.client.electricity_trading.cli.etrading import (
     create_order as run_create_order,
 )
 from frequenz.client.electricity_trading.cli.etrading import (
+    list_gridpool_orders as run_list_gridpool_orders,
+)
+from frequenz.client.electricity_trading.cli.etrading import (
     list_gridpool_trades as run_list_gridpool_trades,
 )
 from frequenz.client.electricity_trading.cli.etrading import (
-    list_orders as run_list_orders,
-)
-from frequenz.client.electricity_trading.cli.etrading import (
-    list_trades as run_list_trades,
+    list_public_trades as run_list_public_trades,
 )
 
 TZ = ZoneInfo("Europe/Berlin")
@@ -48,9 +48,9 @@ def cli() -> None:
 @click.option("--url", required=True, type=str)
 @click.option("--key", required=True, type=str)
 @click.option("--start", default=None, type=iso)
-def receive_trades(url: str, key: str, *, start: datetime) -> None:
-    """List and/or stream trades."""
-    asyncio.run(run_list_trades(url=url, key=key, delivery_start=start))
+def receive_public_trades(url: str, key: str, *, start: datetime) -> None:
+    """List and/or stream public trades."""
+    asyncio.run(run_list_public_trades(url=url, key=key, delivery_start=start))
 
 
 @cli.command()
@@ -59,7 +59,7 @@ def receive_trades(url: str, key: str, *, start: datetime) -> None:
 @click.option("--gid", required=True, type=int)
 @click.option("--start", default=None, type=iso)
 def receive_gridpool_trades(url: str, key: str, gid: int, *, start: datetime) -> None:
-    """List and/or stream orders."""
+    """List and/or stream gridpool trades."""
     asyncio.run(
         run_list_gridpool_trades(url=url, key=key, gid=gid, delivery_start=start)
     )
@@ -70,9 +70,11 @@ def receive_gridpool_trades(url: str, key: str, gid: int, *, start: datetime) ->
 @click.option("--key", required=True, type=str)
 @click.option("--start", default=None, type=iso)
 @click.option("--gid", required=True, type=int)
-def receive_orders(url: str, key: str, *, start: datetime, gid: int) -> None:
-    """List and/or stream orders."""
-    asyncio.run(run_list_orders(url=url, key=key, delivery_start=start, gid=gid))
+def receive_gridpool_orders(url: str, key: str, *, start: datetime, gid: int) -> None:
+    """List and/or stream gridpool orders."""
+    asyncio.run(
+        run_list_gridpool_orders(url=url, key=key, delivery_start=start, gid=gid)
+    )
 
 
 @cli.command()
