@@ -6,13 +6,13 @@
 
 ## Upgrading
 
-<!-- Here goes notes on how to upgrade from previous versions, including deprecations and what they should be replaced with -->
+* Rename CLI trade and order functions for clarity
+    * Rename `receive_trades` to `receive_public_trades`
+    * Rename `receive_orders` to `receive_gridpool_orders`
 
 ## New Features
 
 * Print tags and filled (instead of open) quantity for gridpool orders in CLI tool.
-
-<!-- Here goes the main new features and examples or instructions on how to use them -->
 
 ## Bug Fixes
 
