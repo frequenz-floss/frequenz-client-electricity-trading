@@ -258,7 +258,10 @@ class Client(BaseApiClient[ElectricityTradingServiceStub]):
 
         stream_key = (gridpool_id, gridpool_order_filter)
 
-        if stream_key not in self._gridpool_orders_streams:
+        if (
+            stream_key not in self._gridpool_orders_streams
+            or not self._gridpool_orders_streams[stream_key].is_running
+        ):
             try:
                 self._gridpool_orders_streams[stream_key] = GrpcStreamBroadcaster(
                     f"electricity-trading-{stream_key}",
@@ -319,7 +322,10 @@ class Client(BaseApiClient[ElectricityTradingServiceStub]):
 
         stream_key = (gridpool_id, gridpool_trade_filter)
 
-        if stream_key not in self._gridpool_trades_streams:
+        if (
+            stream_key not in self._gridpool_trades_streams
+            or not self._gridpool_trades_streams[stream_key].is_running
+        ):
             try:
                 self._gridpool_trades_streams[stream_key] = GrpcStreamBroadcaster(
                     f"electricity-trading-{stream_key}",
@@ -373,7 +379,10 @@ class Client(BaseApiClient[ElectricityTradingServiceStub]):
             sell_delivery_area=sell_delivery_area,
         )
 
-        if public_trade_filter not in self._public_trades_streams:
+        if (
+            public_trade_filter not in self._public_trades_streams
+            or not self._public_trades_streams[public_trade_filter].is_running
+        ):
             try:
                 self._public_trades_streams[public_trade_filter] = (
                     GrpcStreamBroadcaster(
