@@ -133,7 +133,7 @@ def set_up_order_detail_response(
 
 async def test_stream_gridpool_orders(set_up: SetupParams) -> None:
     """Test the method streaming gridpool orders."""
-    set_up.client.stream_gridpool_orders(set_up.gridpool_id)
+    set_up.client.gridpool_orders_stream(set_up.gridpool_id)
     await asyncio.sleep(0)
 
     set_up.mock_stub.ReceiveGridpoolOrdersStream.assert_called_once()
@@ -146,7 +146,7 @@ async def test_stream_gridpool_orders_with_optional_inputs(set_up: SetupParams) 
     # Fields to filter for
     order_states = [OrderState.ACTIVE]
 
-    set_up.client.stream_gridpool_orders(set_up.gridpool_id, order_states=order_states)
+    set_up.client.gridpool_orders_stream(set_up.gridpool_id, order_states=order_states)
     await asyncio.sleep(0)
 
     set_up.mock_stub.ReceiveGridpoolOrdersStream.assert_called_once()
@@ -161,7 +161,7 @@ async def test_stream_gridpool_trades(
     set_up: SetupParams,
 ) -> None:
     """Test the method streaming gridpool trades."""
-    set_up.client.stream_gridpool_trades(
+    set_up.client.gridpool_trades_stream(
         gridpool_id=set_up.gridpool_id, market_side=set_up.side
     )
     await asyncio.sleep(0)
@@ -179,7 +179,7 @@ async def test_stream_public_trades(
     # Fields to filter for
     trade_states = [TradeState.ACTIVE]
 
-    set_up.client.stream_public_trades(states=trade_states)
+    set_up.client.public_trades_stream(states=trade_states)
     await asyncio.sleep(0)
 
     set_up.mock_stub.ReceivePublicTradesStream.assert_called_once()
