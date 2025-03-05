@@ -218,7 +218,7 @@ class Client(BaseApiClient[ElectricityTradingServiceStub]):
         # type-checker, so it can only be used for type hints.
         return self._stub  # type: ignore
 
-    async def stream_gridpool_orders(
+    def stream_gridpool_orders(
         # pylint: disable=too-many-arguments, too-many-positional-arguments
         self,
         gridpool_id: int,
@@ -285,7 +285,7 @@ class Client(BaseApiClient[ElectricityTradingServiceStub]):
             warn_on_overflow=warn_on_overflow, maxsize=max_size
         )
 
-    async def stream_gridpool_trades(
+    def stream_gridpool_trades(
         # pylint: disable=too-many-arguments, too-many-positional-arguments
         self,
         gridpool_id: int,
@@ -351,7 +351,7 @@ class Client(BaseApiClient[ElectricityTradingServiceStub]):
             warn_on_overflow=warn_on_overflow, maxsize=max_size
         )
 
-    async def stream_public_trades(
+    def stream_public_trades(
         # pylint: disable=too-many-arguments, too-many-positional-arguments
         self,
         states: list[TradeState] | None = None,

@@ -73,7 +73,7 @@ async def list_public_trades(url: str, key: str, *, delivery_start: datetime) ->
         if delivery_start <= datetime.now(timezone.utc):
             return
 
-    stream = await client.stream_public_trades(delivery_period=delivery_period)
+    stream = client.stream_public_trades(delivery_period=delivery_period)
     async for trade in stream:
         print_public_trade(trade)
 
@@ -111,7 +111,7 @@ async def list_gridpool_trades(
     if delivery_start and delivery_start <= datetime.now(timezone.utc):
         return
 
-    stream = await client.stream_gridpool_trades(gid, delivery_period=delivery_period)
+    stream = client.stream_gridpool_trades(gid, delivery_period=delivery_period)
     async for trade in stream:
         print_trade(trade)
 
@@ -154,7 +154,7 @@ async def list_gridpool_orders(
     if delivery_start and delivery_start <= datetime.now(timezone.utc):
         return
 
-    stream = await client.stream_gridpool_orders(gid, delivery_period=delivery_period)
+    stream = client.stream_gridpool_orders(gid, delivery_period=delivery_period)
     async for order in stream:
         print_order(order)
 

@@ -131,27 +131,23 @@ def set_up_order_detail_response(
     ).to_pb()
 
 
-def test_stream_gridpool_orders(set_up: SetupParams) -> None:
+async def test_stream_gridpool_orders(set_up: SetupParams) -> None:
     """Test the method streaming gridpool orders."""
-    set_up.loop.run_until_complete(
-        set_up.client.stream_gridpool_orders(set_up.gridpool_id)
-    )
+    set_up.client.stream_gridpool_orders(set_up.gridpool_id)
+    await asyncio.sleep(0)
 
     set_up.mock_stub.ReceiveGridpoolOrdersStream.assert_called_once()
     args, _ = set_up.mock_stub.ReceiveGridpoolOrdersStream.call_args
     assert args[0].gridpool_id == set_up.gridpool_id
 
 
-def test_stream_gridpool_orders_with_optional_inputs(set_up: SetupParams) -> None:
+async def test_stream_gridpool_orders_with_optional_inputs(set_up: SetupParams) -> None:
     """Test the method streaming gridpool orders with some fields to filter for."""
     # Fields to filter for
     order_states = [OrderState.ACTIVE]
 
-    set_up.loop.run_until_complete(
-        set_up.client.stream_gridpool_orders(
-            set_up.gridpool_id, order_states=order_states
-        )
-    )
+    set_up.client.stream_gridpool_orders(set_up.gridpool_id, order_states=order_states)
+    await asyncio.sleep(0)
 
     set_up.mock_stub.ReceiveGridpoolOrdersStream.assert_called_once()
     args, _ = set_up.mock_stub.ReceiveGridpoolOrdersStream.call_args
@@ -161,15 +157,14 @@ def test_stream_gridpool_orders_with_optional_inputs(set_up: SetupParams) -> Non
     ]
 
 
-def test_stream_gridpool_trades(
+async def test_stream_gridpool_trades(
     set_up: SetupParams,
 ) -> None:
     """Test the method streaming gridpool trades."""
-    set_up.loop.run_until_complete(
-        set_up.client.stream_gridpool_trades(
-            gridpool_id=set_up.gridpool_id, market_side=set_up.side
-        )
+    set_up.client.stream_gridpool_trades(
+        gridpool_id=set_up.gridpool_id, market_side=set_up.side
     )
+    await asyncio.sleep(0)
 
     set_up.mock_stub.ReceiveGridpoolTradesStream.assert_called_once()
     args, _ = set_up.mock_stub.ReceiveGridpoolTradesStream.call_args
@@ -177,16 +172,15 @@ def test_stream_gridpool_trades(
     assert args[0].filter.side == set_up.side.to_pb()
 
 
-def test_stream_public_trades(
+async def test_stream_public_trades(
     set_up: SetupParams,
 ) -> None:
     """Test the method streaming public trades."""
     # Fields to filter for
     trade_states = [TradeState.ACTIVE]
 
-    set_up.loop.run_until_complete(
-        set_up.client.stream_public_trades(states=trade_states)
-    )
+    set_up.client.stream_public_trades(states=trade_states)
+    await asyncio.sleep(0)
 
     set_up.mock_stub.ReceivePublicTradesStream.assert_called_once()
     args, _ = set_up.mock_stub.ReceivePublicTradesStream.call_args
